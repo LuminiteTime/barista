@@ -65,14 +65,14 @@ Responsibilities, one module each:
 | Module | Responsibility |
 |---|---|
 | `main.ts` | Composition root: load config, wire modules, start poller + socket server. |
-| `config.ts` | Read `~/.barista/config.json` (`token`, `ownerId`, optional `transcriber`). |
+| `config.ts` | Read `~/.barista/config.json` (`token`, `ownerId`, optional `chats` allowlist of chat ids: updates from other chats are ignored entirely, optional `whisperModel`). |
 | `telegram/api.ts` | Thin Bot API client: `call(method, params)`, multipart upload, file download. |
 | `telegram/poller.ts` | `getUpdates` loop, persisted offset, exponential backoff on network errors. |
 | `registry.ts` | Directory of chats and topics the bot has seen: title → `chat_id`, topic name → `message_thread_id`. Persisted. |
 | `bindings.ts` | `session_id ↔ (chat_id, thread_id?)`, liveness, conflicts. Persisted. |
 | `inbound.ts` | `Update` → `InboundMessage`: owner gate, entities → Markdown, media download, album grouping, reply quote, voice transcription. |
-| `outbound.ts` | Text (Markdown → Telegram HTML, split ≤4096, plain-text fallback on parse error), files, albums, permission cards, deletes, reactions. |
-| `format/*.ts` | Pure converters: `markdown-to-html`, `entities-to-markdown`, `split`. |
+| `outbound.ts` | Text via `sendRichMessage` with the `markdown` field (Bot API 10.1+: GFM-like, headings, tables, ≤32768 chars; split above), plain `sendMessage` fallback on a 400; files, albums, notices, deletes, reactions, typing. |
+| `format/*.ts` | Pure converters: `entities-to-markdown` (inbound), `split` (outbound). |
 | `server.ts` | HTTP over `~/.barista/barista.sock`, JSON in/out, maps errors to `{code, message, hint}`. |
 | `transcribe.ts` | Voice/audio: `ffmpeg` → 16 kHz wav → `whisper-cli` (whisper-cpp) with a ggml model (default `base`, multilingual). Missing tool/model → file path + readable note instead of a transcript. |
 | `cli.ts` | `barista setup | status | doctor | logs | uninstall`. |
@@ -121,13 +121,25 @@ Inbound prompt shape (one header line, then content):
 replies "redo this" to one of Claude's answers), the quoted message's text is added so Claude
 knows what "this" refers to. No other reply-based interactions in v1.
 
-**Delivery receipts** (reactions on the owner's message, no extra messages):
-👀 the session's mod received it and queued it (the session may be busy) → ✍ its turn started.
-No reaction means no live session listened; the message is dropped (§3).
+**Status reactions** on the owner's message, the message's lifecycle at a glance (one reaction
+at a time, replaced as it moves; no extra messages):
 
-**Chat-level binding** (no topic given) on a forum chat: the session receives messages from every
-topic of that chat that has no topic-level binding of its own (topic bindings win). Replies go to
-the topic of the latest inbound message, General at first.
+| Reaction | Meaning |
+|---|---|
+| 👀 | The session got it and queued it (the session may be busy with an earlier turn). |
+| ✍ | Claude is working on it (its turn started). While working, the topic also shows "typing…" (`sendChatAction`, refreshed every 4 s). |
+| 🤔 | The turn is waiting for your permission (terminal / Remote Control). |
+| 👌 | Done: the turn answered. |
+| 🙈 | Interrupted (Esc in the terminal, `/stop` in the topic). |
+| 💔 | The turn failed (API error, refusal); the reason is mirrored as text. |
+| 🤷 | Message type not supported (sticker, poll, …); nothing was sent to Claude. |
+
+No reaction means no live session listened; the message was dropped (§3). Several Telegram
+messages folded into one turn all move together.
+
+**Binding rules.** A plain (non-forum) group or the private chat with the bot binds as a whole.
+A forum chat (topics enabled) binds **only by topic**; binding a forum chat without a topic is an
+error (`TOPIC_REQUIRED`) that lists the known topics.
 
 Outbound tool `telegram_send_files({ files: [{ path, caption? }], caption? })`: daemon picks
 `sendPhoto`/`sendVideo`/`sendDocument` by MIME, `sendMediaGroup` for 2–10 photos/videos.
@@ -144,7 +156,7 @@ shared `protocol.ts`. Every error: `{ "error": { "code", "message", "hint" } }`.
 | `POST /bind {sessionId, chat, topic?, create?, force?}` | Resolve names, create topic if asked, bind. Conflict with another **live** session → `TOPIC_TAKEN` unless `force`. |
 | `POST /unbind {sessionId}` | Drop binding. |
 | `GET /inbox?sessionId&wait=25` | Long-poll; returns `[InboundMessage | StopRequest]`. Doubles as heartbeat. |
-| `POST /ack {sessionId, messageIds, stage}` | `queued` → 👀, `started` → ✍. |
+| `POST /status {sessionId, messageIds, stage}` | Move the status reaction: `queued` 👀, `working` ✍ (+ typing), `waiting` 🤔, `done` 👌, `aborted` 🙈, `failed` 💔. |
 | `POST /send {sessionId, text}` | Mirror a final answer. |
 | `POST /send-files {sessionId, files, caption?}` | Artifacts. |
 | `POST /notice {sessionId, key, text}` | Post a short notice (permission question); returns its id. |
@@ -182,9 +194,11 @@ captures `ownerId` → writes config (`0600`) → installs `~/Library/LaunchAgen
 → `launchctl bootstrap` → installs the mod from the local clone (`claude plugin marketplace add
 <repo path>` + `claude plugin install barista@barista`) → prints a checklist (privacy mode,
 admin rights, claude.ai login for Remote Control).
-Install = clone the repo + `npm link` (puts `barista` on PATH). The plist runs the absolute Node
-path found at setup (`process.execPath`) with the absolute repo path of `daemon/main.ts`.
-Publishing to GitHub is out of scope for now; README quick start assumes a clone.
+Install = one command: `npm install -g <barista-x.y.z.tgz | github:<owner>/barista>`. The package
+ships plain `.ts` sources (Node 24 runs them, no build step) plus the mod folder; CI (GitHub
+Actions) runs lint, typecheck, tests and attaches the `npm pack` tarball as a release artifact on
+tags. `barista setup` then installs the mod from the package's own folder. The plist runs the
+absolute Node path found at setup (`process.execPath`) with the package's `daemon/main.ts`.
 `barista doctor`: checks daemon, socket, token, privacy mode, rights per known chat, transcriber.
 State dir `~/.barista/`: `config.json`, `state.json` (offset, registry, bindings), `files/`,
 `daemon.log` (no rotation in v1; ceiling noted in code).
@@ -217,7 +231,13 @@ State dir `~/.barista/`: `config.json`, `state.json` (offset, registry, bindings
 
 - Exact repo layout beyond `daemon/`, `mod/`, shared `protocol.ts` (verify the mod engine can
   type-import a file outside the plugin folder; else keep `protocol.ts` inside `mod/`).
-- Markdown ↔ Telegram HTML converter scope (bold, italic, strike, code, pre with language,
-  links, blockquote, lists as text); everything else passes escaped.
+- Inbound entities → Markdown scope (bold, italic, underline, strike, spoiler, code, pre with
+  language, links, blockquote); everything else passes as plain text.
 - Album grouping window (≈1 s by `media_group_id`).
 - Exact wording of messages, status line, and error hints.
+
+## 11. Documentation
+
+User and developer docs live in `docs/` as a Docusaurus site (own `package.json`, dev-only):
+install, binding, reactions, permissions, voice, troubleshooting by error code, architecture,
+protocol, contributing. The README stays the short front door and links there.
