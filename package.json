@@ -22,7 +22,8 @@
     "test": "node --test --test-reporter=dot \"test/**/*.test.ts\"",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "check:mod": "claude plugin validate mod && claude plugin test mod && tsc -p mod"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

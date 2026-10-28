@@ -22,7 +22,7 @@ export function routesFor(core: Core): Routes {
     'POST /send-files': async ({ body }) => ({ messageIds: await sendArtifacts(core, as<SendFilesRequest>(body, 'sessionId', 'files')) }),
     'POST /status': ({ body }) => setStatus(core, as<StatusRequest>(body, 'sessionId', 'messageIds', 'stage')),
     'POST /notice': ({ body }) => openNotice(core, as<NoticeRequest>(body, 'sessionId', 'key', 'text')),
-    'DELETE /notice': ({ body }) => {
+    'POST /notice/close': ({ body }) => {
       const { sessionId, key } = as<NoticeRequest>(body, 'sessionId', 'key')
       return closeNotice(core, sessionId, key)
     },

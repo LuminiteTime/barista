@@ -160,7 +160,7 @@ shared `protocol.ts`. Every error: `{ "error": { "code", "message", "hint" } }`.
 | `POST /send {sessionId, text}` | Mirror a final answer. |
 | `POST /send-files {sessionId, files, caption?}` | Artifacts. |
 | `POST /notice {sessionId, key, text}` | Post a short notice (permission question); returns its id. |
-| `DELETE /notice {sessionId, key}` | Delete it (answered, aborted, session ended). |
+| `POST /notice/close {sessionId, key}` | Delete it (answered, aborted, session ended). |
 | `GET /chats` | Registry dump for status/errors. |
 | `GET /health` | Version, uptime, bot username, privacy-mode flag. |
 

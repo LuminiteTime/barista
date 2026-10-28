@@ -11,5 +11,6 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src", "test"]
+  "include": ["src", "test", "mod/hooks/*.ts"],
+  "exclude": ["mod/hooks/register.ts", "mod/hooks/*.test.ts"]
 }
