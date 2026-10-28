@@ -43,6 +43,9 @@ export type Message = {
   sticker?: unknown
   poll?: unknown
   reply_to_message?: Message
+  quote?: { text: string }
+  location?: unknown
+  contact?: unknown
   forum_topic_created?: { name: string }
   forum_topic_edited?: { name?: string }
 }

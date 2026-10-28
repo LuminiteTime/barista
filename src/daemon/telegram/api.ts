@@ -13,7 +13,7 @@ type CallOptions = { signal?: AbortSignal }
 export type Api = {
   call<T>(method: string, params?: object, options?: CallOptions): Promise<T>
   upload<T>(method: string, params: object, files: Record<string, string>): Promise<T>
-  download(fileId: string, dir: string): Promise<string>
+  download(fileId: string, dir: string, name?: string): Promise<string>
 }
 
 /** A Bot API failure. The message never contains the token-bearing URL. */
@@ -50,11 +50,11 @@ export function createApi({ token, base = 'https://api.telegram.org' }: { token:
         signal: options.signal,
       })),
     upload: (method, params, files) => send(method, async () => ({ body: await toForm(params, files) })),
-    async download(fileId, dir) {
+    async download(fileId, dir, name) {
       const file = await this.call<{ file_path: string }>('getFile', { file_id: fileId })
       const response = await fetch(`${base}/file/bot${token}/${file.file_path}`)
       if (!response.ok || !response.body) throw new TelegramError(response.status, 'File download failed')
-      const path = join(dir, basename(file.file_path))
+      const path = join(dir, name ?? basename(file.file_path))
       await pipeline(Readable.fromWeb(response.body as NodeReadableStream), createWriteStream(path))
       return path
     },
