@@ -28,7 +28,7 @@ export async function fakeTelegram(handlers: Record<string, Handler> = {}) {
     calls,
     handlers,
     named: (method: string) => calls.filter(c => c.method === method),
-    close: () => new Promise<void>(resolve => server.close(() => resolve())),
+    close: () => new Promise<void>(resolve => (server.close(() => resolve()), server.closeAllConnections())),
   }
 }
 

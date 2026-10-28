@@ -46,7 +46,9 @@ export async function startDaemon(paths: Paths = defaultPaths()): Promise<Runnin
     clearInterval(sweeping)
     controller.abort()
     status.stopAll()
-    await new Promise(resolve => server.close(resolve))
+    const closed = new Promise(resolve => server.close(resolve))
+    server.closeAllConnections() // mods hold 20 s long polls; they reconnect on their own
+    await closed
     await polling
     await saver.flush()
   }

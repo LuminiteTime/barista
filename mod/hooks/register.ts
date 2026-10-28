@@ -1,9 +1,9 @@
 import type { On, Register } from 'claude-code'
-import { attach, bindSession, createBridge, mirror, pollOnce, setStage, showStatus, unbindSession, type Bridge } from './bridge.ts'
+import { attach, bindSession, createBridge, endSession, finishTurn, pollOnce, showStatus, startTurn, unbindSession, type Bridge } from './bridge.ts'
 import { explain } from './client.ts'
 import { INSTRUCTIONS, parseBindArgs } from './format.ts'
 import type { Io } from './io.ts'
-import { closePermissionNotices, openPermissionNotice } from './permissions.ts'
+import { closePermissionNotice, closePermissionNotices, openPermissionNotice, trackCall } from './permissions.ts'
 import { startRemoteControl } from './remote.ts'
 import { runTool, TOOL_PATTERN, TOOLS } from './tools.ts'
 
@@ -12,7 +12,6 @@ type Mod = { bridge: Bridge; io?: Io }
 const POLL_EVERY_MS = 1_000
 const STARTING = 'barista is starting…'
 const USAGE = 'Usage: /tg bind <chat> [/ <topic>] [--create] [--force] · /tg unbind · /tg status'
-const END_STAGE = { answer: 'done', aborted: 'aborted', refusal: 'failed', error: 'failed' } as const
 
 export const register: Register = on => {
   const mod: Mod = { bridge: createBridge() }
@@ -45,7 +44,10 @@ function hookSession(on: On, mod: Mod): void {
   })
 
   on('session.end', async (_$, e, next) => {
-    if (mod.io) await closePermissionNotices(mod.io, mod.bridge)
+    if (mod.io) {
+      await closePermissionNotices(mod.io, mod.bridge, false)
+      await endSession(mod.io, mod.bridge)
+    }
     return next(e)
   })
 }
@@ -67,26 +69,32 @@ function hookCommandsAndTools(on: On, mod: Mod): void {
 
 function hookPermissions(on: On, mod: Mod): void {
   on('classic.PermissionRequest', async (_$, e, next) => {
-    if (mod.io && !e.agent_id) await openPermissionNotice(mod.io, mod.bridge, e.tool_name, e.tool_input)
+    if (mod.io) await openPermissionNotice(mod.io, mod.bridge, e.tool_name, e.tool_input)
     return next(e)
   }).catch((_$, e, next) => next(e))
 
   on('tool.call', async (_$, e, next) => {
-    const result = await next(e)
-    if (mod.io) await closePermissionNotices(mod.io, mod.bridge)
-    return result
+    trackCall(mod.bridge, e.tool_use_id, e.tool)
+    try {
+      return await next(e)
+    } finally {
+      if (mod.io) await closePermissionNotice(mod.io, mod.bridge, e.tool_use_id)
+    }
   }).catch((_$, e, next) => next(e))
 }
 
 function hookTurns(on: On, mod: Mod): void {
-  on('turn.start', (_$, e, next) => {
-    if (e.agentId === undefined) mod.bridge.runningTurnId = e.turnId
+  on('turn.start', async (_$, e, next) => {
+    if (mod.io && e.agentId === undefined) await startTurn(mod.io, mod.bridge, e.turnId, e.text)
     return next(e)
   })
 
   on('turn.complete', async (_$, e, next) => {
     const result = await next(e)
-    if (mod.io && e.agentId === undefined) await finishTurn(mod.io, mod.bridge, e.reason, e.answer)
+    if (mod.io && e.agentId === undefined) {
+      await closePermissionNotices(mod.io, mod.bridge, false)
+      await finishTurn(mod.io, mod.bridge, e.reason, e.answer)
+    }
     return result
   })
 }
@@ -104,13 +112,4 @@ async function runCommand(io: Io, bridge: Bridge, args: string): Promise<string>
   } catch (error) {
     return `✗ ${explain(error)}`
   }
-}
-
-async function finishTurn(io: Io, bridge: Bridge, reason: keyof typeof END_STAGE, answer: string): Promise<void> {
-  bridge.runningTurnId = undefined
-  await closePermissionNotices(io, bridge)
-  if (bridge.current) await setStage(io, bridge, bridge.current, END_STAGE[reason])
-  bridge.current = undefined
-  const fallback = reason === 'answer' || reason === 'aborted' ? '' : `💔 The turn ended with ${reason}.`
-  await mirror(io, bridge, answer || fallback)
 }

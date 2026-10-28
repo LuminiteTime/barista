@@ -1,3 +1,4 @@
+import type { CommandRunInput } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
 type Fetched = { url: string; body?: string }
@@ -24,7 +25,7 @@ test('/tg bind posts to the daemon and the tools are registered', async ($, on) 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   expect(tools).toContain('telegram_send_files')
 
-  const { text } = await $.command.run({ command: 'tg', args: 'bind Мастерская / Test topic 1' })
+  const { text } = await $.command.run({ command: 'tg', args: 'bind Мастерская / Test topic 1' } as CommandRunInput)
   expect(text).toContain('Bound to Telegram: Мастерская / Test topic 1')
   const bind = fetched.find(f => f.url.endsWith('/bind'))
   expect(JSON.parse(bind?.body ?? '{}')).toEqual({ sessionId: 'sess-1', chat: 'Мастерская', topic: 'Test topic 1', create: false, force: false })
@@ -43,6 +44,6 @@ test('/tg explains an unreachable daemon instead of failing silently', async ($,
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-  const { text } = await $.command.run({ command: 'tg', args: 'bind Work / backend' })
+  const { text } = await $.command.run({ command: 'tg', args: 'bind Work / backend' } as CommandRunInput)
   expect(text).toContain('DAEMON_DOWN')
 })
