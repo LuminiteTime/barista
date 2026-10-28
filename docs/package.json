@@ -1,7 +1,6 @@
 {
   "name": "barista-docs",
   "private": true,
-  "type": "module",
   "scripts": {
     "start": "docusaurus start",
     "build": "docusaurus build",
@@ -18,5 +17,8 @@
     "@docusaurus/tsconfig": "3.9.2",
     "@docusaurus/types": "3.9.2",
     "typescript": "~5.9.3"
+  },
+  "overrides": {
+    "webpack": "5.102.1"
   }
 }

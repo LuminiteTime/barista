@@ -35,9 +35,9 @@ async function daemonChecks(paths: Paths): Promise<Check[]> {
   return [
     { name: `daemon reachable (v${health.version}, @${health.bot})`, ok: true },
     {
-      name: 'bot reads group messages',
+      name: 'privacy mode off (bot reads all group messages)',
       ok: health.canReadGroups,
-      hint: 'Make the bot an admin in each chat, or @BotFather → /setprivacy → Disable',
+      hint: 'Fine if the bot is an admin in every bound group; otherwise @BotFather → /setprivacy → Disable',
     },
   ]
 }

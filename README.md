@@ -98,7 +98,7 @@ barista setup
 
 It asks for the bot token, then waits until you send `/start` to the bot in a private chat (that is how it learns your Telegram user id; only you can talk to your sessions). Then it offers to install the voice tools, starts the daemon as a launchd agent, and installs the Claude Code mod.
 
-Optional flags: `--token`, `--owner <your user id>`, `--chats <id,id>` (ignore every other chat), `--yes`, `--no-voice`, `--no-mod`.
+Optional flags: `--token`, `--owner <your user id>`, `--chats <id,id>` (read only these chats; the bot learns them at start, so binding by name works right away), `--yes`, `--no-voice`, `--no-mod`.
 
 ### 5. Check it
 
@@ -116,7 +116,7 @@ Restart any open Claude Code sessions so they load the mod, then in one of them:
 /tg bind Work / backend
 ```
 
-The bot only knows chats and topics it has seen. If it answers `TOPIC_UNKNOWN`, send any message in that topic and retry, or add `--create` to create the topic. Send `/tg bind me` to use the private chat with the bot.
+The bot only knows chats and topics it has seen in messages (Telegram has no way to list topics). If it answers `CHAT_UNKNOWN`, send any message in the chat or bind by its numeric id. On `TOPIC_UNKNOWN`, send any message in that topic and retry, or add `--create` to create it. `/tg bind me` uses the private chat with the bot.
 
 ## Commands
 
@@ -145,7 +145,7 @@ The bot only knows chats and topics it has seen. If it answers `TOPIC_UNKNOWN`, 
 |---|---|---|
 | `DAEMON_DOWN` | the mod cannot reach the daemon | `barista start`, then `barista logs` |
 | `NOT_CONFIGURED` | no token or owner | `barista setup` |
-| `CHAT_UNKNOWN` | the bot has not seen that chat | add the bot, send any message there |
+| `CHAT_UNKNOWN` | the bot has not seen that chat | add the bot, send any message there, or bind by chat id |
 | `TOPIC_REQUIRED` | the chat has topics; bind one | `/tg bind <chat> / <topic>` |
 | `TOPIC_UNKNOWN` | the bot has not seen that topic | send a message in it, or use `--create` |
 | `NOT_FORUM` | a topic was given for a chat without topics | bind the chat alone |
@@ -154,7 +154,7 @@ The bot only knows chats and topics it has seen. If it answers `TOPIC_UNKNOWN`, 
 | `FILE_TOO_BIG` | over Telegram's bot limits (20 MB in, 50 MB out) | compress or split the file |
 | `TG_API` | Telegram rejected a request | the message carries Telegram's reason |
 
-If messages in a group never get a 👀, the bot probably cannot read them: make it an admin or disable privacy mode. If the log says another process polls the token (409), stop the other bot client: one token allows one poller.
+If messages in a group never get a 👀, the bot probably cannot read them: make it an admin or disable privacy mode. A repeated 409 warning in the log means another program polls the same token (an old script, another bot framework, the official Telegram plugin); one token allows one poller.
 
 Everything barista keeps is in `~/.barista`: `config.json` (token, mode 600), `state.json`, received `files/`, `daemon.log`.
 
@@ -166,7 +166,7 @@ npm run check       # lint (file and function size limits), typecheck, tests, bu
 npm run check:mod   # validate, test and typecheck the mod (needs the claude CLI)
 ```
 
-The code is in three parts. `src/daemon` is the Telegram side: Bot API client, poller, chat registry, bindings, inbound and outbound messages, socket API. `src/cli` holds `barista` and its launchd setup. `mod/hooks` is the Claude Code side; `mod/hooks/protocol.ts` is the contract between the two. More in the [docs](docs/).
+The code is in three parts. `src/daemon` is the Telegram side: Bot API client, poller, chat registry, bindings, inbound and outbound messages, socket API. `src/cli` holds `barista` and its launchd setup. `mod/hooks` is the Claude Code side; `mod/hooks/protocol.ts` is the contract between the two. More in the [docs](docs/docs/): `cd docs && npm ci && npm start`.
 
 ## License
 
