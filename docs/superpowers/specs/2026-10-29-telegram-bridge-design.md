@@ -74,7 +74,7 @@ Responsibilities, one module each:
 | `outbound.ts` | Text (Markdown → Telegram HTML, split ≤4096, plain-text fallback on parse error), files, albums, permission cards, deletes, reactions. |
 | `format/*.ts` | Pure converters: `markdown-to-html`, `entities-to-markdown`, `split`. |
 | `server.ts` | HTTP over `~/.barista/barista.sock`, JSON in/out, maps errors to `{code, message, hint}`. |
-| `transcribe.ts` | Optional: `ffmpeg` → wav → `whisper-cli` if configured/installed; otherwise skipped. |
+| `transcribe.ts` | Voice/audio: `ffmpeg` → 16 kHz wav → `whisper-cli` (whisper-cpp) with a ggml model (default `base`, multilingual). Missing tool/model → file path + readable note instead of a transcript. |
 | `cli.ts` | `barista setup | status | doctor | logs | uninstall`. |
 
 **Registry.** Bot API cannot list a bot's chats or a forum's topics, so the daemon learns them
@@ -204,8 +204,14 @@ State dir `~/.barista/`: `config.json`, `state.json` (offset, registry, bindings
 - CI: GitHub Actions on Node 24: lint, typecheck, test.
 - Commits: Conventional Commits (`feat:`, `fix:`, `docs:`…), authored by the owner only, no
   co-author trailers.
-- README in English: icon (SVG made for the project), badges, 30-second quick start,
-  architecture diagram, troubleshooting by error code. Plain, no filler.
+- README in English: icon (SVG made for the project), badges, architecture diagram,
+  troubleshooting by error code. Plain, no filler. **Install section for other users, step by
+  step, nothing assumed**: prerequisites (macOS, Homebrew, Node ≥ 24, Claude Code with mods and a
+  claude.ai login for Remote Control, `ffmpeg` + `whisper-cpp` + model download for voice), creating
+  the bot in @BotFather (token, privacy mode / admin, forum topics + Manage Topics right),
+  clone + `npm link`, `barista setup`, first bind, verification with `barista doctor`, uninstall.
+- `barista setup` checks the voice prerequisites and offers the exact `brew install ffmpeg
+  whisper-cpp` + model download commands (runs them on consent).
 
 ## 10. Left to the builder
 
