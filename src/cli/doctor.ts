@@ -1,0 +1,61 @@
+import { access } from 'node:fs/promises'
+import type { Health } from '../../mod/hooks/protocol.ts'
+import { loadConfig } from '../daemon/config.ts'
+import type { Paths } from '../daemon/paths.ts'
+import { PLIST } from './launchd.ts'
+import { say } from './prompt.ts'
+import { run } from './shell.ts'
+import { callDaemon } from './socket.ts'
+import { voiceStatus } from './voice.ts'
+
+type Check = { name: string; ok: boolean; hint?: string }
+
+/** Every precondition, each with what to do when it fails. Exit code 1 if any fails. */
+export async function doctor(paths: Paths): Promise<boolean> {
+  const checks = [
+    await configCheck(paths),
+    await exists('launchd agent', PLIST, 'Run: barista setup'),
+    ...(await daemonChecks(paths)),
+    ...(await voiceChecks(paths)),
+    await modCheck(),
+  ]
+  for (const check of checks) say(`${check.ok ? '✓' : '✗'} ${check.name}${check.ok || !check.hint ? '' : `\n    → ${check.hint}`}`)
+  return checks.every(c => c.ok)
+}
+
+async function configCheck(paths: Paths): Promise<Check> {
+  const config = await loadConfig(paths.config).catch(() => undefined)
+  return { name: 'config (token + owner)', ok: Boolean(config), hint: 'Run: barista setup' }
+}
+
+async function daemonChecks(paths: Paths): Promise<Check[]> {
+  const reply = await callDaemon(paths.socket, 'GET', '/health').catch(() => undefined)
+  if (!reply) return [{ name: 'daemon reachable', ok: false, hint: 'Run: barista start   (then: barista logs)' }]
+  const health = reply.body as Health
+  return [
+    { name: `daemon reachable (v${health.version}, @${health.bot})`, ok: true },
+    {
+      name: 'bot reads group messages',
+      ok: health.canReadGroups,
+      hint: 'Make the bot an admin in each chat, or @BotFather → /setprivacy → Disable',
+    },
+  ]
+}
+
+async function voiceChecks(paths: Paths): Promise<Check[]> {
+  const voice = await voiceStatus(paths)
+  return [
+    { name: 'ffmpeg', ok: voice.ffmpeg, hint: 'brew install ffmpeg' },
+    { name: 'whisper-cpp', ok: voice.whisper, hint: 'brew install whisper-cpp' },
+    { name: 'whisper model', ok: voice.model, hint: 'barista setup (offers the download)' },
+  ]
+}
+
+async function modCheck(): Promise<Check> {
+  const list = await run('claude', ['plugin', 'list']).catch(() => '')
+  return { name: 'Claude Code mod installed', ok: list.includes('barista'), hint: 'Run: barista setup' }
+}
+
+async function exists(name: string, path: string, hint: string): Promise<Check> {
+  return { name, ok: await access(path).then(() => true, () => false), hint }
+}

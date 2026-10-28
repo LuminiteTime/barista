@@ -53,7 +53,8 @@ function reportPollError(error: unknown): void {
   else log('warn', 'polling failed, retrying', error)
 }
 
-if (import.meta.main) {
+/** Foreground entry used by launchd (`barista daemon`). */
+export async function runDaemon(): Promise<void> {
   const daemon = await startDaemon().catch(error => {
     log('error', 'daemon failed to start', error)
     process.exit(1)

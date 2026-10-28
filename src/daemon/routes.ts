@@ -1,4 +1,5 @@
 import type { AttachRequest, BindRequest, Health, NoticeRequest, SendFilesRequest, SendRequest, StatusRequest } from '../../mod/hooks/protocol.ts'
+import { isLive } from './bindings.ts'
 import type { Core } from './core.ts'
 import { BaristaError } from './errors.ts'
 import { closeNotice, openNotice, sendAnswer, sendArtifacts, setStatus } from './replies.ts'
@@ -12,6 +13,7 @@ export function routesFor(core: Core): Routes {
   return {
     'GET /health': () => health(core),
     'GET /chats': () => core.registry.list(),
+    'GET /bindings': () => core.bindings.toJSON().map(b => ({ ...b, isLive: isLive(b, core.now()) })),
     'POST /attach': ({ body }) => ({ binding: attach(core, as<AttachRequest>(body, 'sessionId')) }),
     'POST /bind': async ({ body }) => ({ binding: await bind(core, as<BindRequest>(body, 'sessionId', 'chat')) }),
     'POST /unbind': async ({ body }) => unbind(core, as<{ sessionId: string }>(body, 'sessionId').sessionId),
