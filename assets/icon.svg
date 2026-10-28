@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="barista">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a2419"/>
+      <stop offset="1" stop-color="#1c110c"/>
+    </linearGradient>
+    <linearGradient id="cup" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbf3e6"/>
+      <stop offset="1" stop-color="#e9d9c2"/>
+    </linearGradient>
+    <linearGradient id="bubble" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffb35c"/>
+      <stop offset="1" stop-color="#f07c2c"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- the message rising from the cup -->
+  <path d="M188 92h176a40 40 0 0 1 40 40v52a40 40 0 0 1-40 40h-98l-38 30v-30h-40a40 40 0 0 1-40-40v-52a40 40 0 0 1 40-40z" fill="url(#bubble)"/>
+  <circle cx="226" cy="158" r="13" fill="#3a2419"/>
+  <circle cx="276" cy="158" r="13" fill="#3a2419"/>
+  <circle cx="326" cy="158" r="13" fill="#3a2419"/>
+  <!-- cup -->
+  <path d="M120 282h236v44c0 64-50 104-118 104s-118-40-118-104z" fill="url(#cup)"/>
+  <path d="M356 300h22a42 42 0 0 1 0 84h-30" fill="none" stroke="#fbf3e6" stroke-width="22" stroke-linecap="round"/>
+  <path d="M138 300h200" stroke="#7a4a2e" stroke-width="10" stroke-linecap="round" opacity=".35"/>
+  <rect x="104" y="436" width="272" height="16" rx="8" fill="#c9a989" opacity=".5"/>
+</svg>

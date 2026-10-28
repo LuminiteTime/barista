@@ -1,0 +1,22 @@
+{
+  "name": "barista-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "docusaurus start",
+    "build": "docusaurus build",
+    "serve": "docusaurus serve"
+  },
+  "dependencies": {
+    "@docusaurus/core": "3.9.2",
+    "@docusaurus/preset-classic": "3.9.2",
+    "@docusaurus/theme-mermaid": "3.9.2",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@docusaurus/tsconfig": "3.9.2",
+    "@docusaurus/types": "3.9.2",
+    "typescript": "~5.9.3"
+  }
+}

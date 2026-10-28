@@ -7,7 +7,7 @@ import { log } from './log.ts'
 import { paths as defaultPaths, type Paths } from './paths.ts'
 import { routesFor } from './routes.ts'
 import { serve } from './server.ts'
-import { clearNotices } from './sessions.ts'
+import { clearNotices, learnChat } from './sessions.ts'
 import { createSaver, loadState } from './state.ts'
 import { StatusTracker } from './status.ts'
 import { createApi } from './telegram/api.ts'
@@ -26,6 +26,7 @@ export async function startDaemon(paths: Paths = defaultPaths()): Promise<Runnin
   const core = createCore({ api, config, paths, bot, status, state: await loadState(paths.state) })
   const saver = createSaver(paths.state, () => snapshot(core))
   core.persist = saver.schedule
+  for (const chatId of config.chats ?? []) await learnChat(core, chatId).catch(error => log('warn', `cannot see chat ${chatId}`, error))
   await clearNotices(core)
   const server = await serve(paths.socket, routesFor(core))
   const controller = new AbortController()

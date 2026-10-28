@@ -3,9 +3,10 @@ import { inboxOf, type Core } from './core.ts'
 import { BaristaError } from './errors.ts'
 import { deleteMessage } from './outbound.ts'
 import { TelegramError } from './telegram/api.ts'
-import type { ForumTopic } from './telegram/types.ts'
+import type { Chat, ForumTopic } from './telegram/types.ts'
 
 const MAX_WAIT_MS = 25_000
+const CHAT_ID = /^-?\d+$/
 
 export function attach(core: Core, { sessionId, previousSessionId }: AttachRequest): BindingView | null {
   if (previousSessionId) core.bindings.rename(previousSessionId, sessionId)
@@ -45,12 +46,22 @@ export async function clearNotices(core: Core, sessionId?: string): Promise<void
 }
 
 async function resolveTarget(core: Core, { chat, topic, create }: BindRequest): Promise<BindingView> {
+  if (CHAT_ID.test(chat)) await learnChat(core, Number(chat))
   try {
     return core.registry.resolve(chat, topic)
   } catch (error) {
     if (!create || !topic || !(error instanceof BaristaError) || error.code !== 'TOPIC_UNKNOWN') throw error
     return createTopic(core, chat, topic)
   }
+}
+
+/** Asks Telegram about a chat the bot has not seen in updates yet (by id: Bot API cannot search by title). */
+export async function learnChat(core: Core, chatId: number): Promise<void> {
+  const chat = await core.api.call<Chat>('getChat', { chat_id: chatId }).catch(() => {
+    throw new BaristaError('CHAT_UNKNOWN', `Telegram has no chat ${chatId} for this bot.`, 'Add the bot to the chat first.')
+  })
+  core.registry.learnChat(chat)
+  core.persist()
 }
 
 async function createTopic(core: Core, chatName: string, name: string): Promise<BindingView> {

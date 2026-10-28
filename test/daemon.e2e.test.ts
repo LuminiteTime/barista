@@ -76,3 +76,22 @@ test('errors come back as code, message and hint', async () => {
   await daemon.stop()
   await tg.close()
 })
+
+test('an unseen chat can be bound by id, and allowlisted chats are known at start', async () => {
+  const tg = await fakeTelegram({
+    getMe: () => ({ id: 99, first_name: 'Bot', username: 'test_bot' }),
+    getUpdates: async () => (await sleep(20), []),
+    getChat: params => ({ ...FORUM, id: params.chat_id }),
+    createForumTopic: params => ({ message_thread_id: 55, name: params.name }),
+  })
+  const home = await mkdtemp(join(tmpdir(), 'barista-e2e-'))
+  await writeFile(join(home, 'config.json'), JSON.stringify({ token: 'T', ownerId: 1, apiBase: tg.base, chats: [-100] }))
+  const p = paths(home)
+  const daemon = await startDaemon(p)
+  const byName = await callDaemon(p.socket, 'POST', '/bind', { sessionId: 's', chat: 'Мастерская', topic: 'e2e', create: true })
+  assert.equal((byName.body as { binding: { threadId: number } }).binding.threadId, 55)
+  const byId = await callDaemon(p.socket, 'POST', '/bind', { sessionId: 's2', chat: '-300', topic: 'x', create: true })
+  assert.equal((byId.body as { binding: { chatId: number } }).binding.chatId, -300)
+  await daemon.stop()
+  await tg.close()
+})

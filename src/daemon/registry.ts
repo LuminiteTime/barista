@@ -33,7 +33,7 @@ export class Registry {
   observe(update: Update): void {
     const member = update.my_chat_member
     if (member && GONE.has(member.new_chat_member.status)) this.chats.delete(member.chat.id)
-    else if (member) this.upsert(member.chat)
+    else if (member) this.learnChat(member.chat)
     const message = update.message ?? update.edited_message
     if (message) this.observeMessage(message)
   }
@@ -55,12 +55,12 @@ export class Registry {
 
   findChat(name: string): ChatEntry {
     const wanted = normalize(name)
-    const chat = [...this.chats.values()].find(c => (ME.has(wanted) ? c.isPrivate : normalize(c.title) === wanted))
+    const chat = [...this.chats.values()].find(c => (ME.has(wanted) ? c.isPrivate : normalize(c.title) === wanted || String(c.id) === wanted))
     if (chat) return chat
     throw new BaristaError(
       'CHAT_UNKNOWN',
       `The bot has not seen a chat named "${name}".`,
-      'Add the bot to the chat (admin for forums) and send any message there, then retry.',
+      'Add the bot to the chat (admin for forums) and send any message there, or bind by chat id.',
     )
   }
 
@@ -77,7 +77,7 @@ export class Registry {
   }
 
   private observeMessage(message: Message): void {
-    const entry = this.upsert(message.chat)
+    const entry = this.learnChat(message.chat)
     const thread = message.message_thread_id
     const name =
       message.forum_topic_created?.name ??
@@ -86,7 +86,7 @@ export class Registry {
     if (thread && name) entry.topics[thread] = name
   }
 
-  private upsert(chat: Chat): ChatEntry {
+  learnChat(chat: Chat): ChatEntry {
     const known = this.chats.get(chat.id)
     const entry: ChatEntry = {
       id: chat.id,
