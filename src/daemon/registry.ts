@@ -5,7 +5,6 @@ import type { Chat, Message, Update } from './telegram/types.ts'
 export type ChatEntry = { id: number; title: string; isPrivate: boolean; isForum: boolean; topics: Record<string, string> }
 
 const GENERAL = 'general'
-const ME = new Set(['me', 'dm'])
 const GONE = new Set(['left', 'kicked'])
 
 /** What the bot has seen: Bot API cannot list a bot's chats or a forum's topics, so we learn them from updates. */
@@ -55,7 +54,7 @@ export class Registry {
 
   findChat(name: string): ChatEntry {
     const wanted = normalize(name)
-    const chat = [...this.chats.values()].find(c => (ME.has(wanted) ? c.isPrivate : normalize(c.title) === wanted || String(c.id) === wanted))
+    const chat = [...this.chats.values()].find(c => normalize(c.title) === wanted || String(c.id) === wanted)
     if (chat) return chat
     throw new BaristaError(
       'CHAT_UNKNOWN',

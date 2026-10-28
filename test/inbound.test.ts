@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { test } from 'node:test'
 import { AlbumCollector } from '../src/daemon/inbound/album.ts'
 import { buildInbound, type InboundDeps } from '../src/daemon/inbound/media.ts'
@@ -77,4 +77,19 @@ test('transcribe runs ffmpeg then whisper-cli and never throws', async () => {
   assert.match(runs[0], /^ffmpeg .*-ar 16000 -ac 1/)
   assert.match(runs[1], /^whisper-cli -m \/m.bin -f \/a.ogg.wav/)
   assert.equal(await transcribe('/a.ogg', '/m.bin', async () => Promise.reject(new Error('no'))), undefined)
+})
+
+test('in a plain supergroup a reply to the chain root still quotes it', async () => {
+  const group = { id: -200, type: 'supergroup', title: 'G' } as const
+  const answer: Message = { message_id: 50, date: 0, chat: group, text: 'the answer' }
+  const reply: Message = { message_id: 51, date: 0, chat: group, message_thread_id: 50, text: 'why?', reply_to_message: answer }
+  const inbound = await buildInbound([reply], 'G', await deps())
+  assert.equal(inbound.replyTo, 'the answer')
+})
+
+test('a sender-controlled file name cannot leave the files folder', async () => {
+  const d = await deps()
+  const inbound = await buildInbound([base({ document: { file_id: 'd', file_name: '../../../etc/x.txt' } })], 'F / T', d)
+  assert.ok(inbound.files[0].startsWith(d.filesDir))
+  assert.equal(basename(inbound.files[0]), '9-x.txt')
 })

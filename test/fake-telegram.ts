@@ -17,6 +17,7 @@ export async function fakeTelegram(handlers: Record<string, Handler> = {}) {
     const params = multipart || !body ? {} : JSON.parse(body)
     calls.push({ method, params, multipart })
     const reply = await (handlers[method] ?? (() => true))(params)
+    if (isRaw(reply)) return void res.writeHead(reply.httpStatus).end(reply.raw)
     res.setHeader('content-type', 'application/json')
     res.end(JSON.stringify(toEnvelope(reply)))
   })
@@ -25,9 +26,17 @@ export async function fakeTelegram(handlers: Record<string, Handler> = {}) {
   return {
     base: `http://127.0.0.1:${port}`,
     calls,
+    handlers,
     named: (method: string) => calls.filter(c => c.method === method),
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
+}
+
+/** A reply that is not a Bot API envelope, e.g. a gateway's HTML error page. */
+export type RawReply = { httpStatus: number; raw: string }
+
+function isRaw(reply: Reply): reply is RawReply {
+  return Boolean(reply && typeof reply === 'object' && 'httpStatus' in reply)
 }
 
 function toEnvelope(reply: Reply) {

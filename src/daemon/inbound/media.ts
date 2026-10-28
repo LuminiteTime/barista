@@ -1,5 +1,5 @@
 import { mkdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import type { InboundMessage } from '../../../mod/hooks/protocol.ts'
 import { entitiesToMarkdown } from '../format/entities.ts'
 import type { FileRef, Message } from '../telegram/types.ts'
@@ -39,14 +39,22 @@ export async function buildInbound(messages: Message[], title: string, deps: Inb
 async function attach(inbound: InboundMessage, message: Message, dir: string, deps: InboundDeps): Promise<void> {
   for (const { kind, file } of attachmentsOf(message)) {
     if ((file.file_size ?? 0) > DOWNLOAD_LIMIT) {
-      inbound.note = `FILE_TOO_BIG: ${file.file_name ?? kind} is over 20 MB, Telegram bots cannot download it.`
+      addNote(inbound, `FILE_TOO_BIG: ${file.file_name ?? kind} is over 20 MB, Telegram bots cannot download it.`)
       continue
     }
-    const name = file.file_name ? `${message.message_id}-${file.file_name}` : undefined
-    const path = await deps.download(file.file_id, dir, name)
+    const name = file.file_name ? `${message.message_id}-${basename(file.file_name)}` : undefined
+    const path = await deps.download(file.file_id, dir, name).catch(() => undefined)
+    if (!path) {
+      addNote(inbound, `The ${kind} ${file.file_name ?? ''} could not be downloaded from Telegram.`)
+      continue
+    }
     inbound.files.push(path)
     if (AUDIO_KINDS.has(kind)) inbound.transcript = await deps.transcribe(path)
   }
+}
+
+export function addNote(inbound: InboundMessage, note: string): void {
+  inbound.note = inbound.note ? `${inbound.note}\n${note}` : note
 }
 
 function attachmentsOf(message: Message): Attachment[] {
@@ -66,7 +74,8 @@ function textOf(message: Message): string {
 
 function quoteOf(message: Message): string | undefined {
   const reply = message.reply_to_message
-  if (!reply || reply.forum_topic_created || reply.message_id === message.message_thread_id) return undefined
+  const isTopicRoot = message.is_topic_message && reply?.message_id === message.message_thread_id
+  if (!reply || reply.forum_topic_created || isTopicRoot) return undefined
   const text = message.quote?.text ?? (textOf(reply) || '[media]')
   return text.length > QUOTE_LIMIT ? text.slice(0, QUOTE_LIMIT) + '…' : text
 }

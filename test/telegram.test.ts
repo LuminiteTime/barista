@@ -60,3 +60,22 @@ test('poller hands updates over and advances the offset', async () => {
   assert.equal(tg.named('getUpdates')[0].params.timeout, 50)
   await tg.close()
 })
+
+test('retries gateway errors with a non-JSON body, then succeeds', async () => {
+  let attempts = 0
+  const tg = await fakeTelegram({
+    sendMessage: () => (++attempts === 1 ? { httpStatus: 502, raw: '<html>Bad Gateway</html>' } : { message_id: 6 }),
+  })
+  const api = createApi({ token: 'T', base: tg.base, retryDelayMs: 0 })
+  const sent = await api.call<{ message_id: number }>('sendMessage', { chat_id: 1, text: 'hi' })
+  assert.equal(sent.message_id, 6)
+  await tg.close()
+})
+
+test('a persistent gateway error surfaces as a TelegramError, not a JSON SyntaxError', async () => {
+  const tg = await fakeTelegram({ sendMessage: () => ({ httpStatus: 503, raw: 'down' }) })
+  const api = createApi({ token: 'T', base: tg.base, retryDelayMs: 0 })
+  await assert.rejects(api.call('sendMessage', {}), (error: unknown) => error instanceof TelegramError && error.status === 503)
+  assert.equal(tg.named('sendMessage').length, 4)
+  await tg.close()
+})

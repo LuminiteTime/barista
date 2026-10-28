@@ -53,7 +53,7 @@ export class StatusTracker {
     this.typing.set(keyOf(target), setInterval(tick, this.typingEveryMs))
   }
 
-  private stopTyping(target: Target): void {
+  stopTyping(target: Target): void {
     clearInterval(this.typing.get(keyOf(target)))
     this.typing.delete(keyOf(target))
   }

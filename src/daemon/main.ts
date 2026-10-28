@@ -7,12 +7,14 @@ import { log } from './log.ts'
 import { paths as defaultPaths, type Paths } from './paths.ts'
 import { routesFor } from './routes.ts'
 import { serve } from './server.ts'
-import { clearNotices, learnChat } from './sessions.ts'
+import { clearNotices, learnChat, sweep } from './sessions.ts'
 import { createSaver, loadState } from './state.ts'
 import { StatusTracker } from './status.ts'
 import { createApi } from './telegram/api.ts'
 import { isPollerConflict, runPoller } from './telegram/poller.ts'
 import type { BotInfo } from './telegram/types.ts'
+
+const SWEEP_EVERY_MS = 30_000
 
 export type RunningDaemon = { core: Core; server: Server; stop: () => Promise<void> }
 
@@ -38,8 +40,10 @@ export async function startDaemon(paths: Paths = defaultPaths()): Promise<Runnin
     onOffset: offset => ((core.offset = offset), core.persist()),
     onError: reportPollError,
   })
+  const sweeping = setInterval(() => void sweep(core).catch(error => log('warn', 'sweep failed', error)), SWEEP_EVERY_MS)
   log('info', `barista daemon up as @${bot.username}, socket ${paths.socket}`)
   const stop = async () => {
+    clearInterval(sweeping)
     controller.abort()
     status.stopAll()
     await new Promise(resolve => server.close(resolve))

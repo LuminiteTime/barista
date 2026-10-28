@@ -2,6 +2,8 @@ import type { NoticeRequest, SendFilesRequest, SendRequest, StatusRequest } from
 import { requireBinding, type Core } from './core.ts'
 import { log } from './log.ts'
 import { deleteMessage, postNotice, sendFiles, sendText } from './outbound.ts'
+import type { NoticeRecord } from './state.ts'
+import { TelegramError } from './telegram/api.ts'
 
 export async function sendAnswer(core: Core, { sessionId, text }: SendRequest): Promise<number[]> {
   const binding = requireBinding(core, sessionId)
@@ -31,10 +33,19 @@ export async function openNotice(core: Core, { sessionId, key, text }: NoticeReq
 
 export async function closeNotice(core: Core, sessionId: string, key: string): Promise<void> {
   const notice = core.notices.get(noticeKey(sessionId, key))
-  if (!notice) return
+  if (notice) await removeNotice(core, notice)
+}
+
+/** Deletes a notice message; the record stays (for the next sweep) unless Telegram confirms it is gone. */
+export async function removeNotice(core: Core, notice: NoticeRecord): Promise<void> {
+  try {
+    await deleteMessage(core.api, notice.chatId, notice.messageId)
+  } catch (error) {
+    const isGone = error instanceof TelegramError && error.status === 400
+    if (!isGone) return void log('warn', `could not delete notice ${notice.messageId}, will retry`, error)
+  }
   core.notices.delete(notice.key)
   core.persist()
-  await deleteMessage(core.api, notice.chatId, notice.messageId).catch(() => undefined)
 }
 
 function noticeKey(sessionId: string, key: string): string {

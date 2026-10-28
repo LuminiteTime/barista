@@ -1,7 +1,7 @@
 import type { Binding } from './bindings.ts'
 import { inboxOf, type Core } from './core.ts'
 import { AlbumCollector } from './inbound/album.ts'
-import { buildInbound } from './inbound/media.ts'
+import { addNote, buildInbound } from './inbound/media.ts'
 import { routeUpdate } from './inbound/route.ts'
 import { transcribe } from './inbound/transcribe.ts'
 import { log } from './log.ts'
@@ -11,7 +11,9 @@ const ALBUM_QUIET_MS = 1_000
 
 /** Feeds Telegram updates to the right session inboxes. */
 export function createDelivery(core: Core) {
-  const albums = new AlbumCollector(ALBUM_QUIET_MS, messages => void deliver(core, messages))
+  let inOrder = Promise.resolve()
+  // ponytail: one queue for all chats keeps "photo, then question" in order; per-binding queues if downloads get slow
+  const albums = new AlbumCollector(ALBUM_QUIET_MS, messages => void (inOrder = inOrder.then(() => deliver(core, messages))))
 
   return async function handleUpdates(updates: Update[]): Promise<void> {
     for (const update of updates) {
@@ -42,7 +44,7 @@ async function deliver(core: Core, messages: Message[]): Promise<void> {
       transcribe: path => transcribe(path, model),
     })
     if (messages.some(m => m.voice || m.audio) && !inbound.transcript) {
-      inbound.note = 'Voice not transcribed: whisper-cpp or its model is missing (run `barista doctor`).'
+      addNote(inbound, 'Voice not transcribed: whisper-cpp failed or is missing (run `barista doctor`).')
     }
     inboxOf(core, binding.sessionId).push(inbound)
     log('info', `← ${binding.title}: message ${inbound.messageIds.join(',')}, ${inbound.files.length} file(s)`)

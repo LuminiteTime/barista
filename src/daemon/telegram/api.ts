@@ -28,18 +28,30 @@ export class TelegramError extends Error {
   }
 }
 
-export function createApi({ token, base = 'https://api.telegram.org' }: { token: string; base?: string }): Api {
+type ApiOptions = { token: string; base?: string; retryDelayMs?: number }
+
+export function createApi({ token, base = 'https://api.telegram.org', retryDelayMs = 1000 }: ApiOptions): Api {
   const methodUrl = (method: string) => `${base}/bot${token}/${method}`
 
+  /** Retries 429 (after retry_after), 5xx and dropped connections; anything else is the caller's problem. */
   async function send<T>(method: string, init: () => Promise<RequestInit>): Promise<T> {
     for (let attempt = 0; ; attempt++) {
-      const response = await fetch(methodUrl(method), { method: 'POST', ...(await init()) })
-      const envelope = (await response.json()) as Envelope<T>
-      if (envelope.ok) return envelope.result as T
-      const error = new TelegramError(envelope.error_code ?? response.status, envelope.description ?? 'Unknown error', envelope.parameters?.retry_after)
-      if (error.status !== 429 || attempt >= MAX_RETRIES) throw error
-      await sleep((error.retryAfter ?? 1) * 1000)
+      const request = await init()
+      try {
+        return await sendOnce<T>(method, request)
+      } catch (error) {
+        if (attempt >= MAX_RETRIES || request.signal?.aborted || !isTransient(error)) throw error
+        await sleep(error instanceof TelegramError && error.retryAfter !== undefined ? error.retryAfter * 1000 : retryDelayMs * 2 ** attempt)
+      }
     }
+  }
+
+  async function sendOnce<T>(method: string, request: RequestInit): Promise<T> {
+    const response = await fetch(methodUrl(method), { method: 'POST', ...request })
+    const envelope = (await response.json().catch(() => ({ ok: false }))) as Envelope<T>
+    if (envelope.ok) return envelope.result as T
+    const description = envelope.description ?? `Telegram answered HTTP ${response.status}`
+    throw new TelegramError(envelope.error_code ?? response.status, description, envelope.parameters?.retry_after)
   }
 
   return {
@@ -59,6 +71,11 @@ export function createApi({ token, base = 'https://api.telegram.org' }: { token:
       return path
     },
   }
+}
+
+function isTransient(error: unknown): boolean {
+  if (error instanceof TelegramError) return error.status === 429 || error.status >= 500
+  return error instanceof TypeError // fetch: connection refused, reset or DNS failure
 }
 
 async function toForm(params: object, files: Record<string, string>): Promise<FormData> {

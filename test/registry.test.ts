@@ -50,11 +50,11 @@ test('unknown names and topics on plain chats are explicit errors', () => {
   assert.deepEqual(registry.resolve('Plain'), { chatId: -200, title: 'Plain' })
 })
 
-test('private chat resolves as me', () => {
+test('a private chat resolves by its id ("me" is mapped to the owner id by the daemon)', () => {
   const registry = new Registry()
   const dm = { id: 42, type: 'private', first_name: 'Mikhail' } as const
   registry.observe({ update_id: 1, message: msg({ chat: dm }) })
-  assert.deepEqual(registry.resolve('me'), { chatId: 42, title: 'Mikhail (private)' })
+  assert.deepEqual(registry.resolve('42'), { chatId: 42, title: 'Mikhail (private)' })
 })
 
 test('survives a JSON round trip and forgets chats the bot left', () => {

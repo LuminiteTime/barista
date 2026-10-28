@@ -2,12 +2,13 @@ import type { AttachRequest, BindRequest, BindingView, InboxItem } from '../../m
 import { inboxOf, type Core } from './core.ts'
 import { BaristaError } from './errors.ts'
 import { log } from './log.ts'
-import { deleteMessage } from './outbound.ts'
+import { removeNotice } from './replies.ts'
 import { TelegramError } from './telegram/api.ts'
 import type { Chat, ForumTopic } from './telegram/types.ts'
 
 const MAX_WAIT_MS = 25_000
 const CHAT_ID = /^-?\d+$/
+const ME = /^(me|dm)$/i
 
 export function attach(core: Core, { sessionId, previousSessionId }: AttachRequest): BindingView | null {
   if (previousSessionId) core.bindings.rename(previousSessionId, sessionId)
@@ -25,6 +26,8 @@ export async function bind(core: Core, request: BindRequest): Promise<BindingVie
 }
 
 export async function unbind(core: Core, sessionId: string): Promise<void> {
+  const binding = core.bindings.get(sessionId)
+  if (binding) core.status.stopTyping(binding)
   core.bindings.unbind(sessionId)
   await clearNotices(core, sessionId)
   core.persist()
@@ -38,16 +41,25 @@ export async function takeInbox(core: Core, sessionId: string, waitMs: number, s
 /** Deletes notices whose question is settled or whose session is gone, so nothing stale hangs in Telegram. */
 export async function clearNotices(core: Core, sessionId?: string): Promise<void> {
   const offline = new Set(core.bindings.offline(core.now()).map(b => b.sessionId))
-  for (const [key, notice] of core.notices) {
+  for (const notice of [...core.notices.values()]) {
     const isTarget = sessionId ? notice.sessionId === sessionId : offline.has(notice.sessionId) || !core.bindings.get(notice.sessionId)
-    if (!isTarget) continue
-    core.notices.delete(key)
-    await deleteMessage(core.api, notice.chatId, notice.messageId).catch(() => undefined)
+    if (isTarget) await removeNotice(core, notice)
   }
   core.persist()
 }
 
-async function resolveTarget(core: Core, { chat, topic, create }: BindRequest): Promise<BindingView> {
+/** Cleanup for sessions that died without a word (killed terminal, crash): typing, inboxes, notices. */
+export async function sweep(core: Core): Promise<void> {
+  for (const binding of core.bindings.offline(core.now())) {
+    core.status.stopTyping(binding)
+    core.inboxes.delete(binding.sessionId)
+  }
+  await clearNotices(core)
+}
+
+async function resolveTarget(core: Core, request: BindRequest): Promise<BindingView> {
+  const { topic, create } = request
+  const chat = ME.test(request.chat.trim()) ? String(core.config.ownerId) : request.chat
   if (CHAT_ID.test(chat)) await learnChat(core, Number(chat))
   try {
     return core.registry.resolve(chat, topic)
@@ -59,6 +71,9 @@ async function resolveTarget(core: Core, { chat, topic, create }: BindRequest): 
 
 /** Asks Telegram about a chat the bot has not seen in updates yet (by id: Bot API cannot search by title). */
 export async function learnChat(core: Core, chatId: number): Promise<void> {
+  if (core.config.chats && !core.config.chats.includes(chatId)) {
+    throw new BaristaError('CHAT_UNKNOWN', `Chat ${chatId} is not in the chats allowlist, so its messages would be ignored.`, 'Add it: barista setup --chats <ids>')
+  }
   const chat = await core.api.call<Chat>('getChat', { chat_id: chatId }).catch(() => {
     throw new BaristaError('CHAT_UNKNOWN', `Telegram has no chat ${chatId} for this bot.`, 'Add the bot to the chat first.')
   })

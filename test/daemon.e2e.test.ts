@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -7,6 +7,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { callDaemon } from '../src/cli/socket.ts'
 import { startDaemon } from '../src/daemon/main.ts'
 import { paths } from '../src/daemon/paths.ts'
+import { sweep } from '../src/daemon/sessions.ts'
 import type { Update } from '../src/daemon/telegram/types.ts'
 import { fakeTelegram } from './fake-telegram.ts'
 
@@ -90,8 +91,74 @@ test('an unseen chat can be bound by id, and allowlisted chats are known at star
   const daemon = await startDaemon(p)
   const byName = await callDaemon(p.socket, 'POST', '/bind', { sessionId: 's', chat: 'Мастерская', topic: 'e2e', create: true })
   assert.equal((byName.body as { binding: { threadId: number } }).binding.threadId, 55)
-  const byId = await callDaemon(p.socket, 'POST', '/bind', { sessionId: 's2', chat: '-300', topic: 'x', create: true })
-  assert.equal((byId.body as { binding: { chatId: number } }).binding.chatId, -300)
+  await daemon.stop()
+  await tg.close()
+})
+
+test('"me" is the owner\'s private chat, never a stranger\'s', async () => {
+  const stranger = { id: 555, type: 'private', first_name: 'Stranger' } as const
+  const queue: Update[][] = [[{ update_id: 1, message: { message_id: 1, date: 0, chat: stranger, from: { id: 555, first_name: 'S' }, text: 'hi' } }]]
+  const tg = await fakeTelegram({
+    getMe: () => ({ id: 99, first_name: 'Bot', username: 'test_bot' }),
+    getUpdates: async () => queue.shift() ?? (await sleep(20), []),
+    getChat: params => ({ id: params.chat_id, type: 'private', first_name: 'Owner' }),
+  })
+  const home = await mkdtemp(join(tmpdir(), 'barista-e2e-'))
+  await writeFile(join(home, 'config.json'), JSON.stringify({ token: 'T', ownerId: 1, apiBase: tg.base }))
+  const p = paths(home)
+  const daemon = await startDaemon(p)
+  await sleep(100)
+  const bound = await callDaemon(p.socket, 'POST', '/bind', { sessionId: 's', chat: 'me' })
+  assert.equal((bound.body as { binding: { chatId: number } }).binding.chatId, 1)
+  await daemon.stop()
+  await tg.close()
+})
+
+test('binding a chat outside the allowlist is refused', async () => {
+  const tg = await fakeTelegram({
+    getMe: () => ({ id: 99, first_name: 'Bot', username: 'test_bot' }),
+    getUpdates: async () => (await sleep(20), []),
+    getChat: params => ({ id: params.chat_id, type: 'group', title: 'Other' }),
+  })
+  const home = await mkdtemp(join(tmpdir(), 'barista-e2e-'))
+  await writeFile(join(home, 'config.json'), JSON.stringify({ token: 'T', ownerId: 1, apiBase: tg.base, chats: [-100] }))
+  const p = paths(home)
+  const daemon = await startDaemon(p)
+  const refused = await callDaemon(p.socket, 'POST', '/bind', { sessionId: 's', chat: '-300' })
+  assert.equal((refused.body as { error: { code: string } }).error.code, 'CHAT_UNKNOWN')
+  await daemon.stop()
+  await tg.close()
+})
+
+test('the sweep stops typing and deletes notices of sessions that went silent; a failed delete is retried', async () => {
+  const { tg, p, api } = await setup()
+  let deleteFails = true
+  tg.handlers.deleteMessage = () => (deleteFails ? { error_code: 500, description: 'Internal' } : true)
+  tg.handlers.sendMessage = () => ({ message_id: 900 })
+  const daemon = await startDaemon(p)
+  await sleep(100)
+  await api('POST', '/bind', { sessionId: 's', chat: 'Мастерская', topic: 'Test topic 1' })
+  await api('POST', '/status', { sessionId: 's', chatId: -100, messageIds: [1], stage: 'working' })
+  await api('POST', '/notice', { sessionId: 's', key: 'k', text: '🔐' })
+  const later = Date.now() + 120_000
+  daemon.core.now = () => later
+  await sweep(daemon.core)
+  assert.equal(daemon.core.notices.size, 1, 'kept for retry after a failed delete')
+  deleteFails = false
+  await sweep(daemon.core)
+  assert.equal(daemon.core.notices.size, 0)
+  const typed = tg.named('sendChatAction').length
+  await sleep(50)
+  assert.equal(tg.named('sendChatAction').length, typed, 'typing stopped')
+  await daemon.stop()
+  await tg.close()
+})
+
+test('a corrupt state.json is set aside instead of crash-looping', async () => {
+  const { tg, p } = await setup()
+  await writeFile(p.state, '{"offset": 1, "regis')
+  const daemon = await startDaemon(p)
+  assert.ok((await readdir(p.home)).some(name => name.startsWith('state.json.corrupt-')))
   await daemon.stop()
   await tg.close()
 })
