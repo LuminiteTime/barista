@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tgz
+.superpowers/
+docs/node_modules/
+docs/build/
+docs/.docusaurus/
+mod/.claude-plugin/types/
