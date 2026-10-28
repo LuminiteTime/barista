@@ -1,13 +1,20 @@
 import type { NoticeRequest, SendFilesRequest, SendRequest, StatusRequest } from '../../mod/hooks/protocol.ts'
 import { requireBinding, type Core } from './core.ts'
+import { log } from './log.ts'
 import { deleteMessage, postNotice, sendFiles, sendText } from './outbound.ts'
 
 export async function sendAnswer(core: Core, { sessionId, text }: SendRequest): Promise<number[]> {
-  return sendText(core.api, requireBinding(core, sessionId), text)
+  const binding = requireBinding(core, sessionId)
+  const ids = await sendText(core.api, binding, text)
+  log('info', `→ ${binding.title}: answer, ${text.length} chars, messages ${ids.join(',')}`)
+  return ids
 }
 
 export async function sendArtifacts(core: Core, { sessionId, files, caption }: SendFilesRequest): Promise<number[]> {
-  return sendFiles(core.api, requireBinding(core, sessionId), files, caption)
+  const binding = requireBinding(core, sessionId)
+  const ids = await sendFiles(core.api, binding, files, caption)
+  log('info', `→ ${binding.title}: ${files.length} file(s), messages ${ids.join(',')}`)
+  return ids
 }
 
 export async function setStatus(core: Core, { sessionId, messageIds, stage }: StatusRequest): Promise<void> {

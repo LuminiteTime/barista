@@ -45,6 +45,7 @@ async function deliver(core: Core, messages: Message[]): Promise<void> {
       inbound.note = 'Voice not transcribed: whisper-cpp or its model is missing (run `barista doctor`).'
     }
     inboxOf(core, binding.sessionId).push(inbound)
+    log('info', `← ${binding.title}: message ${inbound.messageIds.join(',')}, ${inbound.files.length} file(s)`)
   } catch (error) {
     log('error', 'inbound delivery failed', error)
     await core.status.set(binding, messages.map(m => m.message_id), 'failed')

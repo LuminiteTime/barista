@@ -50,7 +50,9 @@ export async function startDaemon(paths: Paths = defaultPaths()): Promise<Runnin
 }
 
 function reportPollError(error: unknown): void {
-  if (isPollerConflict(error)) log('error', 'Another process polls this bot token (409). Stop it: only one poller per token works.')
+  if (isPollerConflict(error)) {
+    log('warn', 'Another poller holds this bot token (409). Normal for up to a minute after a restart; if it persists, stop the other bot client.')
+  }
   else log('warn', 'polling failed, retrying', error)
 }
 

@@ -1,6 +1,7 @@
 import type { AttachRequest, BindRequest, BindingView, InboxItem } from '../../mod/hooks/protocol.ts'
 import { inboxOf, type Core } from './core.ts'
 import { BaristaError } from './errors.ts'
+import { log } from './log.ts'
 import { deleteMessage } from './outbound.ts'
 import { TelegramError } from './telegram/api.ts'
 import type { Chat, ForumTopic } from './telegram/types.ts'
@@ -18,6 +19,7 @@ export function attach(core: Core, { sessionId, previousSessionId }: AttachReque
 export async function bind(core: Core, request: BindRequest): Promise<BindingView> {
   const target = await resolveTarget(core, request)
   const binding = core.bindings.bind({ sessionId: request.sessionId, target, now: core.now(), force: request.force })
+  log('info', `session ${request.sessionId} bound to ${binding.title}`)
   core.persist()
   return view(binding)
 }
