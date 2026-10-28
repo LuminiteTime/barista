@@ -52,4 +52,4 @@ No reaction means no session listens in that topic.
 
 ## Permissions
 
-Binding runs `/remote-control`, so the session is also open in the Claude app. When Claude needs permission, the topic gets one short line, for example `🔐 Claude asks to run Bash: npm publish`. Answer in the terminal or in the app. The notice is deleted as soon as the question is settled, also when the turn ends or the session closes.
+Binding runs `/remote-control`, so the session is also open in the Claude app. When Claude needs permission, the topic gets one short line, for example `🔐 Claude asks to run Bash: npm publish`. Answer in the terminal or in the app. The notice is deleted when that tool call ends (allowed, denied or finished), when the turn ends, or when the session closes. If the session dies without closing, the daemon removes it within a minute and a half.
