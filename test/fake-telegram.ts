@@ -1,0 +1,45 @@
+import { createServer, type IncomingMessage } from 'node:http'
+import type { AddressInfo } from 'node:net'
+
+export type Call = { method: string; params: Record<string, unknown>; multipart: boolean }
+type Reply = unknown | { error_code: number; description: string; retry_after?: number }
+export type Handler = (params: Record<string, unknown>) => Reply | Promise<Reply>
+
+/** A tiny stand-in for api.telegram.org: answers Bot API methods from handlers and records every call. */
+export async function fakeTelegram(handlers: Record<string, Handler> = {}) {
+  const calls: Call[] = []
+  const server = createServer(async (req, res) => {
+    const url = req.url ?? ''
+    if (url.startsWith('/file/')) return void res.end('file-bytes')
+    const method = url.split('/').pop() ?? ''
+    const body = await read(req)
+    const multipart = (req.headers['content-type'] ?? '').startsWith('multipart/')
+    const params = multipart || !body ? {} : JSON.parse(body)
+    calls.push({ method, params, multipart })
+    const reply = await (handlers[method] ?? (() => true))(params)
+    res.setHeader('content-type', 'application/json')
+    res.end(JSON.stringify(toEnvelope(reply)))
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const { port } = server.address() as AddressInfo
+  return {
+    base: `http://127.0.0.1:${port}`,
+    calls,
+    named: (method: string) => calls.filter(c => c.method === method),
+    close: () => new Promise<void>(resolve => server.close(() => resolve())),
+  }
+}
+
+function toEnvelope(reply: Reply) {
+  if (reply && typeof reply === 'object' && 'error_code' in reply) {
+    const { error_code, description, retry_after } = reply as { error_code: number; description: string; retry_after?: number }
+    return { ok: false, error_code, description, parameters: retry_after === undefined ? undefined : { retry_after } }
+  }
+  return { ok: true, result: reply }
+}
+
+async function read(req: IncomingMessage): Promise<string> {
+  let body = ''
+  for await (const chunk of req) body += chunk
+  return body
+}
