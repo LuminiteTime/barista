@@ -33,8 +33,10 @@ From source:
 
 ```sh
 git clone <repo> barista && cd barista
-npm ci && npm run build && npm install -g .
+npm install -g .
 ```
+
+No build step: from a checkout, Node 24 runs the TypeScript sources directly. Keep the folder; the global `barista` links to it.
 
 ## Run setup
 
@@ -42,7 +44,7 @@ npm ci && npm run build && npm install -g .
 barista setup
 ```
 
-Setup asks for the token (the input is hidden), checks it with Telegram, and waits for you to send `/start` to the bot in a private chat. That message tells barista your user id; the bot ignores everyone else. Then it offers the voice tools (about 150 MB with the model), installs the launchd agent `dev.barista.daemon`, and installs the Claude Code mod from the package.
+Setup asks for the token (the input is hidden), checks it with Telegram, and waits for you to send `/start` to the bot in a private chat. That message tells barista your user id; the bot ignores everyone else. If you used the official Telegram plugin, setup takes the token and your user id from `~/.claude/channels/telegram/` and asks neither. Then it offers the voice tools (about 150 MB with the model), installs the launchd agent `dev.barista.daemon`, installs the Claude Code mod from the package, and ends with the `barista doctor` checks.
 
 | Flag | Effect |
 |---|---|

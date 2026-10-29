@@ -8,9 +8,10 @@
     "node": ">=24"
   },
   "bin": {
-    "barista": "dist/src/cli/main.js"
+    "barista": "bin/barista.mjs"
   },
   "files": [
+    "bin",
     "dist",
     "mod",
     ".claude-plugin"

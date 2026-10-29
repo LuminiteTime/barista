@@ -17,7 +17,7 @@ export async function doctor(paths: Paths): Promise<boolean> {
     await exists('launchd agent', PLIST, 'Run: barista setup'),
     ...(await daemonChecks(paths)),
     ...(await voiceChecks(paths)),
-    await modCheck(),
+    ...(await pluginChecks()),
   ]
   for (const check of checks) say(`${check.ok ? '✓' : '✗'} ${check.name}${check.ok || !check.hint ? '' : `\n    → ${check.hint}`}`)
   return checks.every(c => c.ok)
@@ -51,9 +51,18 @@ async function voiceChecks(paths: Paths): Promise<Check[]> {
   ]
 }
 
-async function modCheck(): Promise<Check> {
+async function pluginChecks(): Promise<Check[]> {
   const list = await run('claude', ['plugin', 'list']).catch(() => '')
-  return { name: 'Claude Code mod installed', ok: list.includes('barista'), hint: 'Run: barista setup' }
+  const rival = enabledTelegramPlugin(list)
+  return [
+    { name: 'Claude Code mod installed', ok: list.includes('barista@'), hint: 'Run: barista setup' },
+    { name: 'official Telegram plugin off (one bot token, one poller)', ok: !rival, hint: `claude plugin disable ${rival}` },
+  ]
+}
+
+/** The official Telegram plugin, if enabled: its sessions poll the same token and starve the daemon (409). */
+export function enabledTelegramPlugin(pluginList: string): string | undefined {
+  return pluginList.match(/❯ (telegram@\S+)\n(?:(?!\s*❯).*\n)*?\s*Status: ✔ enabled/)?.[1]
 }
 
 async function exists(name: string, path: string, hint: string): Promise<Check> {

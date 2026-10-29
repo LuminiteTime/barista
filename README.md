@@ -87,8 +87,10 @@ Or from source:
 
 ```sh
 git clone <this repo> barista && cd barista
-npm ci && npm run build && npm install -g .
+npm install -g .
 ```
+
+There is no build step: from a checkout, Node 24 runs the TypeScript sources directly. Keep the folder, the global `barista` links to it.
 
 ### 4. Run setup
 
@@ -96,19 +98,13 @@ npm ci && npm run build && npm install -g .
 barista setup
 ```
 
-It asks for the bot token (input hidden), then waits until you send `/start` to the bot in a private chat (that is how it learns your Telegram user id; only you can talk to your sessions). Then it offers to install the voice tools, starts the daemon as a launchd agent, and installs the Claude Code mod.
+It asks for the bot token (input hidden), then waits until you send `/start` to the bot in a private chat (that is how it learns your Telegram user id; only you can talk to your sessions). Coming from the official Telegram plugin, it takes both from `~/.claude/channels/telegram/` and asks nothing. Then it offers to install the voice tools, starts the daemon as a launchd agent, installs the Claude Code mod, and runs the `barista doctor` checks.
 
 Optional flags: `--token-file <path>` (the bare token or an `.env` line; there is no `--token`, since `ps` and shell history would show it), `--owner <your user id>`, `--chats <id,id>` (read only these chats; the bot learns them at start, so binding by name works right away), `--yes`, `--no-voice`, `--no-mod`.
 
-### 5. Check it
+Setup ends with the same checks `barista doctor` runs any time later: every line is ✓ or ✗ with the exact fix. Turn off the official Telegram plugin if you had it (`claude plugin disable telegram@claude-plugins-official`): one bot token allows one poller.
 
-```sh
-barista doctor
-```
-
-Every line is either ✓ or ✗ with the exact fix.
-
-### 6. Bind a session
+### 5. Bind a session
 
 Restart any open Claude Code sessions so they load the mod, then in one of them:
 

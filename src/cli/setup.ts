@@ -1,12 +1,16 @@
-import { mkdir, readFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { loadConfig, saveConfig, type Config } from '../daemon/config.ts'
 import type { Paths } from '../daemon/paths.ts'
 import { createApi, type Api } from '../daemon/telegram/api.ts'
 import type { BotInfo, Update } from '../daemon/telegram/types.ts'
+import { fromOfficialPlugin, OFFICIAL_PLUGIN_DIR, readTokenFile, type Credentials } from './credentials.ts'
+import { doctor } from './doctor.ts'
 import { installService, stopService } from './launchd.ts'
 import { cliEntry, packageRoot } from './package.ts'
 import { askSecret, say } from './prompt.ts'
 import { run } from './shell.ts'
+import { callDaemon } from './socket.ts'
 import { setupVoice } from './voice.ts'
 
 export type SetupOptions = { tokenFile?: string; owner?: number; chats?: number[]; yes: boolean; voice: boolean; mod: boolean }
@@ -22,28 +26,37 @@ export async function setup(paths: Paths, options: SetupOptions): Promise<void> 
   await installService({ node: process.execPath, script: cliEntry(), home: paths.home, log: paths.log })
   say('✓ Daemon installed as a launchd agent (starts at login, restarts on crash)')
   if (options.mod) await installMod()
-  printChecklist(config.bot)
+  await waitForDaemon(paths)
+  say('')
+  const isHealthy = await doctor(paths)
+  printNextSteps(config.bot, isHealthy)
 }
 
 async function configure(options: SetupOptions, existing?: Config): Promise<{ config: Config; bot: BotInfo }> {
-  const fromFile = options.tokenFile ? await readTokenFile(options.tokenFile) : undefined
-  const token = fromFile ?? existing?.token ?? (await askSecret('Bot token from @BotFather (input hidden): '))
+  const official = await fromOfficialPlugin()
+  const token = await pickToken(options, official, existing)
   const api = createApi({ token })
   const bot = await api.call<BotInfo>('getMe').catch(() => {
     throw new Error('Telegram rejected this token. Copy it again from @BotFather → /mybots → API Token.')
   })
   say(`✓ Bot @${bot.username}`)
-  const ownerId = options.owner ?? existing?.ownerId ?? (await waitForOwner(api, bot))
+  const ownerId = options.owner ?? existing?.ownerId ?? officialOwner(official) ?? (await waitForOwner(api, bot))
   return { config: { ...existing, token, ownerId, chats: options.chats ?? existing?.chats }, bot }
 }
 
-const TOKEN = /\d{5,}:[\w-]{30,}/
+async function pickToken(options: SetupOptions, official: Credentials, existing?: Config): Promise<string> {
+  if (options.tokenFile) return readTokenFile(options.tokenFile)
+  if (existing?.token) return existing.token
+  if (official.token) {
+    say(`✓ Token taken from the Telegram plugin (${OFFICIAL_PLUGIN_DIR}/.env)`)
+    return official.token
+  }
+  return askSecret('Bot token from @BotFather (input hidden): ')
+}
 
-/** A file holding the token, bare or as an .env line; never a command-line argument, which `ps` and shell history would show. */
-export async function readTokenFile(path: string): Promise<string> {
-  const token = (await readFile(path, 'utf8')).match(TOKEN)?.[0]
-  if (!token) throw new Error(`No bot token in ${path}. Put the token from @BotFather there, alone or as TELEGRAM_BOT_TOKEN=…`)
-  return token
+function officialOwner({ ownerId }: Credentials): number | undefined {
+  if (ownerId) say(`✓ Owner ${ownerId}, the one user the Telegram plugin allows`)
+  return ownerId
 }
 
 async function waitForOwner(api: Api, bot: BotInfo): Promise<number> {
@@ -69,12 +82,17 @@ async function installMod(): Promise<void> {
   say('✓ Claude Code mod installed (barista@barista); restart running sessions to load it')
 }
 
-function printChecklist(bot: BotInfo): void {
-  say('\nBefore the first bind:')
-  if (!bot.can_read_all_group_messages) {
-    say(`  • Groups: make @${bot.username} an admin, or disable privacy mode (@BotFather → /setprivacy → Disable)`)
+/** launchd starts the daemon asynchronously; give it a few seconds before checking it. */
+async function waitForDaemon(paths: Paths): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    if (await callDaemon(paths.socket, 'GET', '/health').then(() => true, () => false)) return
+    await sleep(500)
   }
-  say('  • Forum chats: give the bot the "Manage Topics" admin right to let it create topics')
-  say('  • Remote Control: be logged in to Claude Code with a claude.ai account')
-  say('\nThen, in any Claude Code session: /tg bind <chat> / <topic>   ·   check everything: barista doctor')
+}
+
+function printNextSteps(bot: BotInfo, isHealthy: boolean): void {
+  say(isHealthy ? '\nAll set.' : '\nFix the ✗ lines above (or ignore the voice ones), then run: barista doctor')
+  say(`  1. Restart open Claude Code sessions so they load the mod.`)
+  say(`  2. In a session: /tg bind <chat> / <topic>   (Telegram cannot list topics: if @${bot.username} has not seen one, write in it first)`)
+  say('  Forum chats: give the bot the "Manage Topics" admin right, and /tg bind … --create makes a topic for you.')
 }
