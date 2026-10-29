@@ -80,13 +80,13 @@ A Telegram bot token allows only one `getUpdates` poller, so one small daemon ow
 From a release tarball:
 
 ```sh
-npm install -g ./barista-0.1.0.tgz
+npm install -g ./barista-1.0.0.tgz
 ```
 
 Or from source:
 
 ```sh
-git clone <this repo> barista && cd barista
+git clone https://github.com/LuminiteTime/barista.git && cd barista
 npm install -g .
 ```
 

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Blocks a commit that would carry a secret; see scripts/check-secrets.ts.
+exec node scripts/check-secrets.ts --staged

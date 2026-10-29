@@ -26,13 +26,13 @@ sidebar_position: 2
 From a release tarball (built by CI on every tag):
 
 ```sh
-npm install -g ./barista-0.1.0.tgz
+npm install -g ./barista-1.0.0.tgz
 ```
 
 From source:
 
 ```sh
-git clone <repo> barista && cd barista
+git clone https://github.com/LuminiteTime/barista.git && cd barista
 npm install -g .
 ```
 

@@ -6,7 +6,7 @@ import { closeNotice, openNotice, sendAnswer, sendArtifacts, setStatus } from '.
 import type { Request, Routes } from './server.ts'
 import { attach, bind, takeInbox, unbind } from './sessions.ts'
 
-export const VERSION = '0.1.0'
+export const VERSION = '1.0.0'
 
 /** The socket API of spec §6, mapped onto the use cases. */
 export function routesFor(core: Core): Routes {

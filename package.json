@@ -1,6 +1,6 @@
 {
   "name": "barista",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Bind Claude Code sessions to Telegram chats and forum topics.",
   "type": "module",
   "license": "MIT",
@@ -19,12 +19,14 @@
   "scripts": {
     "barista": "node src/cli/main.ts",
     "lint": "eslint .",
+    "check:secrets": "node scripts/check-secrets.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test --test-reporter=dot \"test/**/*.test.ts\"",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "check": "npm run check:secrets && npm run lint && npm run typecheck && npm test && npm run build",
     "prepack": "npm run build",
-    "check:mod": "claude plugin validate mod && claude plugin test mod && tsc -p mod"
+    "check:mod": "claude plugin validate mod && claude plugin test mod && tsc -p mod",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
