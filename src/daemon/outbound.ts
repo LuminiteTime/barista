@@ -2,6 +2,7 @@ import { stat } from 'node:fs/promises'
 import { extname } from 'node:path'
 import { BaristaError } from './errors.ts'
 import { splitText } from './format/split.ts'
+import type { NoticeButton } from '../../mod/hooks/protocol.ts'
 import { TelegramError, type Api } from './telegram/api.ts'
 
 /** Where a message goes; `replyTo` makes the first message sent a reply to that message. */
@@ -64,8 +65,17 @@ export async function sendFiles(api: Api, target: Target, files: OutboundFile[],
   return { messageIds: ids, skipped: refused.map(error => error.message) }
 }
 
-export async function postNotice(api: Api, target: Target, text: string): Promise<number> {
-  return (await api.call<Sent>('sendMessage', { ...where(target), text, disable_notification: false })).message_id
+export async function postNotice(api: Api, target: Target, text: string, buttons?: NoticeButton[][]): Promise<number> {
+  return (await api.call<Sent>('sendMessage', { ...where(target), text, disable_notification: false, ...keyboard(buttons) })).message_id
+}
+
+export async function editNotice(api: Api, { chatId, messageId }: { chatId: number; messageId: number }, text: string, buttons?: NoticeButton[][]): Promise<void> {
+  await api.call('editMessageText', { chat_id: chatId, message_id: messageId, text, ...keyboard(buttons) })
+}
+
+function keyboard(buttons?: NoticeButton[][]) {
+  if (!buttons?.length) return {}
+  return { reply_markup: { inline_keyboard: buttons.map(row => row.map(b => ({ text: b.text, callback_data: b.data }))) } }
 }
 
 export async function deleteMessage(api: Api, chatId: number, messageId: number): Promise<void> {

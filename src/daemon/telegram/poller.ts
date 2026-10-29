@@ -5,7 +5,7 @@ import type { Update } from './types.ts'
 const LONG_POLL_SECONDS = 50
 const MIN_BACKOFF_MS = 1_000
 const MAX_BACKOFF_MS = 30_000
-const ALLOWED_UPDATES = ['message', 'edited_message', 'my_chat_member']
+const ALLOWED_UPDATES = ['message', 'edited_message', 'my_chat_member', 'callback_query']
 
 type PollerArgs = {
   api: Api

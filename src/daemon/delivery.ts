@@ -1,5 +1,6 @@
 import type { Binding } from './bindings.ts'
 import { inboxOf, type Core } from './core.ts'
+import { handleChoice } from './choices.ts'
 import { AlbumCollector } from './inbound/album.ts'
 import { Audience } from './inbound/audience.ts'
 import { addNote, buildInbound } from './inbound/media.ts'
@@ -22,6 +23,7 @@ export function createDelivery(core: Core) {
 
   return async function handleUpdates(updates: Update[]): Promise<void> {
     for (const update of updates) {
+      if (update.callback_query) await handleChoice(core, update.callback_query)
       if (!isAllowedChat(core, update)) continue
       core.registry.observe(update)
       forgetOnMembershipChange(audience, update)

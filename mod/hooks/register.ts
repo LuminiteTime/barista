@@ -4,7 +4,7 @@ import { attach, createBridge, endSession, finishTurn, pollOnce, showStatus, sta
 import { explain } from './client.ts'
 import { INSTRUCTIONS, parseBindArgs } from './format.ts'
 import type { Io } from './io.ts'
-import { closePermissionNotice, closePermissionNotices, openPermissionNotice, trackCall } from './permissions.ts'
+import { askPermissionQuestion, closePermissionNotice, closePermissionNotices, openPermissionNotice, trackCall } from './permissions.ts'
 import { describeStatus } from './status.ts'
 import { runTool, TOOL_PATTERN, TOOLS } from './tools.ts'
 import { bindOrWait, retryWaitingBind } from './waiting.ts'
@@ -72,8 +72,13 @@ function hookCommandsAndTools(on: On, mod: Mod): void {
 
 function hookPermissions(on: On, mod: Mod): void {
   on('classic.PermissionRequest', async (_$, e, next) => {
-    if (mod.io) await openPermissionNotice(mod.io, mod.bridge, e.tool_name, e.tool_input)
-    return next(e)
+    if (!mod.io) return next(e)
+    if (e.tool_name !== 'AskUserQuestion') return (await openPermissionNotice(mod.io, mod.bridge, e.tool_name, e.tool_input), next(e))
+    const asked = askPermissionQuestion(mod.io, mod.bridge, e.tool_input)
+    const below = await next(e)
+    const answers = below.decision ? undefined : await asked
+    const input = (e.tool_input ?? {}) as Record<string, unknown>
+    return answers ? { ...below, decision: { behavior: 'allow' as const, updatedInput: { ...input, answers } } } : below
   }).catch((_$, e, next) => next(e))
 
   on('tool.call', async (_$, e, next) => {

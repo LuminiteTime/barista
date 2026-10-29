@@ -37,8 +37,10 @@ export type InboundMessage = {
 }
 
 export type StopRequest = { kind: 'stop' }
+/** The owner pressed a notice's button: `data` is the button's, as the mod set it. */
+export type ChoiceItem = { kind: 'choice'; key: string; data: string }
 
-export type InboxItem = InboundMessage | StopRequest
+export type InboxItem = InboundMessage | StopRequest | ChoiceItem
 
 export type BindRequest = { sessionId: string; chat: string; topic?: string; create?: boolean; force?: boolean }
 export type AttachRequest = { sessionId: string; previousSessionId?: string }
@@ -48,6 +50,9 @@ export type SendFilesRequest = { sessionId: string; files: { path: string; capti
 /** `skipped`: why each file that could not go was left out. */
 export type SendFilesResult = { messageIds: number[]; skipped: string[] }
 export type StatusRequest = { sessionId: string; chatId: number; messageIds: number[]; stage: Stage }
-export type NoticeRequest = { sessionId: string; key: string; text: string }
+/** A button under a notice: `data` (64 bytes at most) comes back as a ChoiceItem when the owner presses it. */
+export type NoticeButton = { text: string; data: string }
+/** Posting a key again edits that notice in place. */
+export type NoticeRequest = { sessionId: string; key: string; text: string; buttons?: NoticeButton[][] }
 
 export type Health = { version: string; bot: string; canReadGroups: boolean; uptimeMs: number }

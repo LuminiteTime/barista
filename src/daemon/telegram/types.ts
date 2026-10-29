@@ -56,8 +56,11 @@ export type Message = {
 
 export type ChatMemberUpdated = { chat: Chat; from: User; new_chat_member: { status: string } }
 
+export type CallbackQuery = { id: string; from: User; message?: Message; data?: string }
+
 export type Update = {
   update_id: number
+  callback_query?: CallbackQuery
   message?: Message
   edited_message?: Message
   my_chat_member?: ChatMemberUpdated

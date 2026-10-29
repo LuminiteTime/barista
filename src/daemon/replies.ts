@@ -1,7 +1,7 @@
 import type { NoticeRequest, SendFilesRequest, SendFilesResult, SendRequest, StatusRequest } from '../../mod/hooks/protocol.ts'
 import { requireBinding, type Core } from './core.ts'
 import { log } from './log.ts'
-import { deleteMessage, postNotice, sendFiles, sendText } from './outbound.ts'
+import { deleteMessage, editNotice, postNotice, sendFiles, sendText } from './outbound.ts'
 import type { NoticeRecord } from './state.ts'
 import { TelegramError } from './telegram/api.ts'
 
@@ -23,10 +23,12 @@ export async function setStatus(core: Core, { sessionId, messageIds, stage }: St
   await core.status.set(requireBinding(core, sessionId), messageIds, stage)
 }
 
-export async function openNotice(core: Core, { sessionId, key, text }: NoticeRequest): Promise<void> {
+export async function openNotice(core: Core, { sessionId, key, text, buttons }: NoticeRequest): Promise<void> {
   const binding = requireBinding(core, sessionId)
+  const open = core.notices.get(noticeKey(sessionId, key))
+  if (open && (await editNotice(core.api, open, text, buttons).then(() => true, () => false))) return
   await closeNotice(core, sessionId, key)
-  const messageId = await postNotice(core.api, binding, text)
+  const messageId = await postNotice(core.api, binding, text, buttons)
   core.notices.set(noticeKey(sessionId, key), { key: noticeKey(sessionId, key), sessionId, chatId: binding.chatId, messageId })
   core.persist()
 }
@@ -50,4 +52,9 @@ export async function removeNotice(core: Core, notice: NoticeRecord): Promise<vo
 
 function noticeKey(sessionId: string, key: string): string {
   return `${sessionId}:${key}`
+}
+
+/** The mod's own key of a notice record. */
+export function modKey(notice: NoticeRecord): string {
+  return notice.key.slice(notice.sessionId.length + 1)
 }

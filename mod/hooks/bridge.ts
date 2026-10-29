@@ -2,6 +2,7 @@ import type { Io } from './io.ts'
 import { callDaemon, DaemonError, explain } from './client.ts'
 import { toPrompt, type BindArgs } from './format.ts'
 import type { BindingView, InboundMessage, InboxItem, Stage } from './protocol.ts'
+import { chooseInTelegram, type Asking } from './questions.ts'
 import { bandFor } from './status.ts'
 
 /** A Telegram message handed to Claude Code, waiting for (or running in) a turn. */
@@ -19,6 +20,8 @@ export type Bridge = {
   notices: Map<string, Promise<void>>
   /** Tool calls in flight: tool_use_id → tool name. */
   calls: Map<string, string>
+  /** Claude's questions open in Telegram, by notice key (see questions.ts). */
+  asking: Map<string, Asking>
   /** This session in Remote Control, once it is on. */
   remoteUrl?: string
   /** A bind waiting for the bot to see its chat (see waiting.ts). */
@@ -35,7 +38,7 @@ const MIRROR_RETRIES = 6
 const MIRROR_RETRY_MS = 5_000
 
 export function createBridge(): Bridge {
-  return { isAttached: false, pending: [], current: [], notices: new Map(), calls: new Map(), isPolling: false }
+  return { isAttached: false, pending: [], current: [], notices: new Map(), calls: new Map(), asking: new Map(), isPolling: false }
 }
 
 export async function attach(io: Io, bridge: Bridge): Promise<void> {
@@ -147,6 +150,7 @@ export function showStatus(io: Io, bridge: Bridge, problem?: unknown): void {
 
 async function handle(io: Io, bridge: Bridge, item: InboxItem): Promise<void> {
   if (item.kind === 'stop') return stopTurn(io, bridge)
+  if (item.kind === 'choice') return chooseInTelegram(io, bridge, item.key, item.data)
   await deliver(io, bridge, item)
 }
 
