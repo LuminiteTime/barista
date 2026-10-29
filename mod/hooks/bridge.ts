@@ -24,6 +24,7 @@ export type Bridge = {
   asking: Map<string, Asking>
   /** This session in Remote Control, once it is on. */
   remoteUrl?: string
+  isRemoteOn?: boolean
   /** A bind waiting for the bot to see its chat (see waiting.ts). */
   waiting?: { args: BindArgs; triesLeft: number }
   isPolling: boolean
