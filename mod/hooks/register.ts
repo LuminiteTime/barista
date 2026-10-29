@@ -1,13 +1,13 @@
 import type { On, Register } from 'claude-code'
 import { bandWriter, hookBand } from './band.tsx'
-import { attach, bindSession, createBridge, endSession, finishTurn, pollOnce, showStatus, startTurn, unbindSession, type Bridge } from './bridge.ts'
+import { attach, createBridge, endSession, finishTurn, pollOnce, showStatus, startTurn, unbindSession, type Bridge } from './bridge.ts'
 import { explain } from './client.ts'
 import { INSTRUCTIONS, parseBindArgs } from './format.ts'
 import type { Io } from './io.ts'
 import { closePermissionNotice, closePermissionNotices, openPermissionNotice, trackCall } from './permissions.ts'
-import { startRemoteControl } from './remote.ts'
 import { describeStatus } from './status.ts'
 import { runTool, TOOL_PATTERN, TOOLS } from './tools.ts'
+import { bindOrWait, retryWaitingBind } from './waiting.ts'
 
 type Mod = { bridge: Bridge; io?: Io }
 
@@ -42,7 +42,7 @@ function hookSession(on: On, mod: Mod): void {
     await $.command.register({ name: 'tg', description: 'Bind this session to Telegram: /tg bind <chat> / <topic>', argumentHint: 'bind|unbind|status' })
     for (const { name, description, inputSchema } of TOOLS) await $.tool.register({ name, description, inputSchema, isDeferred: false })
     await attach(io, mod.bridge).catch(error => showStatus(io, mod.bridge, error))
-    $.clock.every(POLL_EVERY_MS, () => void pollOnce(io, mod.bridge))
+    $.clock.every(POLL_EVERY_MS, () => void retryWaitingBind(io, mod.bridge).then(() => pollOnce(io, mod.bridge)))
     return next(e)
   })
 
@@ -109,9 +109,7 @@ async function runCommand(io: Io, bridge: Bridge, args: string): Promise<string>
     if (verb === 'status' || verb === '') return await describeStatus(io, bridge)
     const parsed = verb === 'bind' ? parseBindArgs(rest.join(' ')) : undefined
     if (!parsed) return USAGE
-    const text = await bindSession(io, bridge, parsed)
-    startRemoteControl(io, bridge)
-    return text
+    return await bindOrWait(io, bridge, parsed)
   } catch (error) {
     return `✗ ${explain(error)}`
   }

@@ -1,9 +1,9 @@
 import type { Io } from './io.ts'
-import { bindSession, replyTarget, unbindSession, type Bridge } from './bridge.ts'
+import { replyTarget, unbindSession, type Bridge } from './bridge.ts'
 import { callDaemon, explain } from './client.ts'
 import type { SendFilesResult } from './protocol.ts'
-import { startRemoteControl } from './remote.ts'
 import { describeStatus } from './status.ts'
+import { bindOrWait } from './waiting.ts'
 
 type Input = Record<string, unknown>
 
@@ -32,11 +32,8 @@ export const TOOLS = [
       },
       required: ['chat'],
     },
-    run: async (io: Io, bridge: Bridge, input: Input) => {
-      const text = await bindSession(io, bridge, { chat: String(input.chat), topic: input.topic as string | undefined, create: input.create === true, force: input.force === true })
-      startRemoteControl(io, bridge)
-      return text
-    },
+    run: (io: Io, bridge: Bridge, input: Input) =>
+      bindOrWait(io, bridge, { chat: String(input.chat), topic: input.topic as string | undefined, create: input.create === true, force: input.force === true }),
   },
   {
     name: 'telegram_unbind',

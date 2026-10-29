@@ -21,6 +21,8 @@ export type Bridge = {
   calls: Map<string, string>
   /** This session in Remote Control, once it is on. */
   remoteUrl?: string
+  /** A bind waiting for the bot to see its chat (see waiting.ts). */
+  waiting?: { args: BindArgs; triesLeft: number }
   isPolling: boolean
 }
 
@@ -57,7 +59,10 @@ export async function bindSession(io: Io, bridge: Bridge, args: BindArgs): Promi
 }
 
 export async function unbindSession(io: Io, bridge: Bridge): Promise<string> {
-  if (!bridge.binding) return 'This session is not bound to Telegram.'
+  const wasWaiting = bridge.waiting !== undefined
+  bridge.waiting = undefined
+  showStatus(io, bridge)
+  if (!bridge.binding) return wasWaiting ? 'Stopped waiting to bind.' : 'This session is not bound to Telegram.'
   await callDaemon(io, 'POST', '/unbind', { sessionId: bridge.sessionId })
   const title = bridge.binding.title
   bridge.binding = undefined

@@ -20,7 +20,7 @@ You can also ask Claude in plain words ("listen to topic backend in Work"); the 
 - `--create` creates the topic when the bot has not seen it.
 - `--force` takes a topic held by another live session. A session counts as live while it polls; one that has been silent for a minute loses the topic to anyone.
 
-The bot learns chat and topic names only from messages it receives; Telegram has no call that lists topics. Send any message in a new topic before binding to it by name, or use `--create`.
+The bot learns chat and topic names only from messages it receives; Telegram has no call that lists a bot's chats or topics, and being an admin does not change that. When you bind to a chat or topic the bot has not seen, the session waits two minutes for any message there and binds when it arrives; the band shows `⏳ waiting for a message in …`. `/tg unbind` cancels the wait. Quotes around names are optional: `/tg bind "My chat" / "My topic"` works too.
 
 After `/clear` the session id changes; the mod moves the binding to the new id by itself.
 

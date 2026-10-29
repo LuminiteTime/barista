@@ -10,7 +10,7 @@ Start with `barista doctor` and `barista logs`. Errors in Claude Code and in Tel
 |---|---|---|
 | `DAEMON_DOWN` | the mod cannot reach the daemon socket | `barista start`; if it stops again, read `barista logs` |
 | `NOT_CONFIGURED` | no token or owner in `~/.barista/config.json` | `barista setup` |
-| `CHAT_UNKNOWN` | the bot has not seen a chat with that title | add the bot, send any message in the chat, or bind by chat id |
+| `CHAT_UNKNOWN` | the bot has not seen a chat with that title (a bind by name waits two minutes for a message there first) | add the bot, send any message in the chat, or bind by chat id |
 | `NOT_FORUM` | a topic was given for a chat without topics | bind the chat alone |
 | `TOPIC_REQUIRED` | the chat has topics | `/tg bind <chat> / <topic>` |
 | `TOPIC_UNKNOWN` | the bot has not seen that topic | send a message in it, or add `--create` |

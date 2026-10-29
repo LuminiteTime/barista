@@ -20,8 +20,18 @@ export function parseBindArgs(input: string): BindArgs | undefined {
   const rest = input.replace(/(^|\s)--(create|force)\b/g, ' ').trim()
   if (!rest) return undefined
   const slash = rest.indexOf(' / ')
-  if (slash < 0) return { chat: rest, create, force }
-  return { chat: rest.slice(0, slash).trim(), topic: rest.slice(slash + 3).trim(), create, force }
+  if (slash < 0) return { chat: unquote(rest), create, force }
+  return { chat: unquote(rest.slice(0, slash)), topic: unquote(rest.slice(slash + 3)), create, force }
+}
+
+/** People quote names with spaces out of shell habit; titles never start and end with quotes. */
+function unquote(name: string): string {
+  return name.trim().replace(/^["'«“](.*)["'»”]$/, '$1').trim()
+}
+
+/** `chat / topic`, as the person wrote it. */
+export function bindTarget({ chat, topic }: BindArgs): string {
+  return topic ? `${chat} / ${topic}` : chat
 }
 
 export const INSTRUCTIONS = (title: string) => `This session is bound to the Telegram chat "${title}" through barista.

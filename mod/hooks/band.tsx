@@ -6,6 +6,7 @@ const band = atom({ plugin: 'barista', key: 'band' } as const, null)
 
 const LOOK = {
   bound: { mark: '●', color: 'success' },
+  waiting: { mark: '⏳', color: 'warning' },
   idle: { mark: '○', color: 'subtle' },
   down: { mark: '✗', color: 'error' },
 } as const
