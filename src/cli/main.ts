@@ -10,6 +10,7 @@ import { say } from './prompt.ts'
 import { run } from './shell.ts'
 import { setup } from './setup.ts'
 import { callDaemon } from './socket.ts'
+import { paint } from './ui.ts'
 
 const USAGE = `barista — Claude Code ⇄ Telegram
 
@@ -73,6 +74,6 @@ const command = commands[positionals[0] ?? '']
 if (!command) say(USAGE)
 else
   await command().catch(error => {
-    say(`✗ ${error instanceof Error ? error.message : String(error)}`)
+    say(`${paint('red', '✗')} ${error instanceof Error ? error.message : String(error)}`)
     process.exit(1)
   })

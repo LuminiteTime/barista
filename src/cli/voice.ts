@@ -5,8 +5,9 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
 import type { Paths } from '../daemon/paths.ts'
-import { confirm, say } from './prompt.ts'
-import { has, run } from './shell.ts'
+import { confirm } from './prompt.ts'
+import { has, runLive } from './shell.ts'
+import { note, ok, paint, progress } from './ui.ts'
 
 export const MODEL_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin'
 
@@ -22,12 +23,12 @@ export async function voiceStatus(paths: Paths): Promise<VoiceStatus> {
 export async function setupVoice(paths: Paths, assumeYes: boolean): Promise<void> {
   const status = await voiceStatus(paths)
   const formulas = missingFormulas(status)
-  if (formulas.length === 0 && status.model) return say('✓ Voice transcription ready (ffmpeg + whisper-cpp)')
+  if (formulas.length === 0 && status.model) return ok('Voice transcription ready (ffmpeg + whisper-cpp + model)')
   describeMissing(status, formulas)
-  if (!(await confirm('Install them now?', assumeYes))) return say('Skipped. Voice will arrive as files without transcripts.')
-  if (formulas.length) await run('brew', ['install', ...formulas])
+  if (!(await confirm('  Install them now?', assumeYes))) return note('Skipped. Voice will arrive as files without transcripts.')
+  if (formulas.length) await brewInstall(formulas)
   if (!status.model) await downloadModel(status.modelPath)
-  say('✓ Voice transcription ready')
+  ok('Voice transcription ready')
 }
 
 function missingFormulas(status: VoiceStatus): string[] {
@@ -35,16 +36,37 @@ function missingFormulas(status: VoiceStatus): string[] {
 }
 
 function describeMissing(status: VoiceStatus, formulas: string[]): void {
-  say('Voice messages need: ' + [...formulas, status.model ? '' : 'whisper model (~142 MB)'].filter(Boolean).join(', '))
-  if (formulas.length) say(`  brew install ${formulas.join(' ')}`)
-  if (!status.model) say(`  curl -L -o ${status.modelPath} ${MODEL_URL}`)
+  note('Voice messages get transcripts when these are installed:')
+  for (const formula of formulas) item(formula, 'Homebrew')
+  if (!status.model) item('whisper model', `~142 MB → ${status.modelPath}`)
+}
+
+function item(what: string, detail: string): void {
+  note(`  • ${paint('bold', what)}  ${detail}`)
+}
+
+async function brewInstall(formulas: string[]): Promise<void> {
+  note(`$ brew install ${formulas.join(' ')}   (Homebrew prints its own progress; a few minutes is normal)`)
+  await runLive('brew', ['install', ...formulas])
+  ok(`Installed ${formulas.join(', ')}`)
 }
 
 async function downloadModel(dest: string): Promise<void> {
   await mkdir(join(dest, '..'), { recursive: true })
   const response = await fetch(MODEL_URL)
   if (!response.ok || !response.body) throw new Error(`Model download failed: HTTP ${response.status}`)
-  say('Downloading whisper model…')
-  await pipeline(Readable.fromWeb(response.body as NodeReadableStream), createWriteStream(`${dest}.part`))
+  const show = progress('whisper model', Number(response.headers.get('content-length')))
+  let done = 0
+  await pipeline(
+    Readable.fromWeb(response.body as NodeReadableStream),
+    async function* (chunks: AsyncIterable<Buffer>) {
+      for await (const chunk of chunks) {
+        show((done += chunk.length))
+        yield chunk
+      }
+    },
+    createWriteStream(`${dest}.part`),
+  )
   await rename(`${dest}.part`, dest)
+  ok('Whisper model downloaded')
 }

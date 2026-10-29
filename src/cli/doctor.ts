@@ -3,9 +3,9 @@ import type { Health } from '../../mod/hooks/protocol.ts'
 import { loadConfig } from '../daemon/config.ts'
 import type { Paths } from '../daemon/paths.ts'
 import { PLIST } from './launchd.ts'
-import { say } from './prompt.ts'
 import { run } from './shell.ts'
 import { callDaemon } from './socket.ts'
+import { fail, note, ok } from './ui.ts'
 import { voiceStatus } from './voice.ts'
 
 type Check = { name: string; ok: boolean; hint?: string }
@@ -19,8 +19,14 @@ export async function doctor(paths: Paths): Promise<boolean> {
     ...(await voiceChecks(paths)),
     ...(await pluginChecks()),
   ]
-  for (const check of checks) say(`${check.ok ? '✓' : '✗'} ${check.name}${check.ok || !check.hint ? '' : `\n    → ${check.hint}`}`)
+  for (const check of checks) report(check)
   return checks.every(c => c.ok)
+}
+
+function report({ name, ok: isOk, hint }: Check): void {
+  if (isOk) return ok(name)
+  fail(name)
+  if (hint) note(`  → ${hint}`)
 }
 
 async function configCheck(paths: Paths): Promise<Check> {
