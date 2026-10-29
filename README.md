@@ -43,6 +43,7 @@ you, in Telegram  ─▶  barista daemon  ─▶  Claude Code session  ─▶  a
 
   No reaction means no session listens there right now; such messages are ignored.
 - Binding also turns on Remote Control, so permission prompts can be answered from the Claude app on your phone. The topic gets a short notice with the session's Remote Control link; it is deleted when the question is settled and the call ends.
+- Claude's questions arrive with a button per option; a tap answers them, and the terminal dialog closes.
 - `/stop` in the topic interrupts the current turn. Replying to a specific message quotes it into the prompt.
 
 ## How it works

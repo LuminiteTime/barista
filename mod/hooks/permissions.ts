@@ -36,7 +36,6 @@ export async function openPermissionNotice(io: Io, bridge: Bridge, tool: string,
 export async function askPermissionQuestion(io: Io, bridge: Bridge, input: unknown): Promise<Record<string, string> | undefined> {
   if (!bridge.binding) return undefined
   const key = noticeKeyFor(bridge, 'AskUserQuestion')
-  bridge.notices.set(key, Promise.resolve())
   await setStages(io, bridge, bridge.current, 'waiting')
   return askInTelegram(io, bridge, key, input)
 }

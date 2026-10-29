@@ -17,6 +17,7 @@ You keep working in the terminal as usual. Telegram is a second prompt box, hand
 - Accepts text, photos, videos, files, albums and voice (transcribed locally with whisper.cpp). A reply to a message quotes it into the prompt.
 - Shows progress with reactions on your message.
 - Turns on Remote Control when you bind, so permission prompts can be answered from the Claude app on your phone. The topic gets a short notice that is deleted once the question is settled.
+- Sends Claude's questions with a button per option: a tap answers them.
 
 ## What it does not do
 

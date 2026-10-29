@@ -29,6 +29,7 @@ export async function openNotice(core: Core, { sessionId, key, text, buttons }: 
   if (open && (await editNotice(core.api, open, text, buttons).then(() => true, () => false))) return
   await closeNotice(core, sessionId, key)
   const messageId = await postNotice(core.api, binding, text, buttons)
+  log('info', `→ ${binding.title}: notice ${messageId}${buttons ? ' with buttons' : ''}`)
   core.notices.set(noticeKey(sessionId, key), { key: noticeKey(sessionId, key), sessionId, chatId: binding.chatId, messageId })
   core.persist()
 }
@@ -40,6 +41,7 @@ export async function closeNotice(core: Core, sessionId: string, key: string): P
 
 /** Deletes a notice message; the record stays (for the next sweep) unless Telegram confirms it is gone. */
 export async function removeNotice(core: Core, notice: NoticeRecord): Promise<void> {
+  log('info', `→ notice ${notice.messageId} removed`)
   try {
     await deleteMessage(core.api, notice.chatId, notice.messageId)
   } catch (error) {

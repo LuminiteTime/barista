@@ -57,3 +57,7 @@ No reaction means no session listens in that topic.
 ## Permissions
 
 Binding runs `/remote-control`, so the session is also open in the Claude app. When Claude needs permission, the topic gets one short notice, for example `🔐 Claude asks to run Bash: npm publish`, with the session's Remote Control link. Answer in the terminal or in the app. The notice is deleted when that tool call ends (allowed, denied or finished), when the turn ends, or when the session closes. If the session dies without closing, the daemon removes it within a minute and a half.
+
+## Questions
+
+When Claude asks you something (its AskUserQuestion tool), the topic gets the question as text, each option's description under it, and a button per option. Tap one and the session gets your answer, as if you had picked it in the terminal; the terminal dialog closes. For a question that takes several answers, tap each (☑ marks them) and then Done. The terminal dialog stays open meanwhile, and whichever side answers first wins; the question leaves Telegram either way. Only the bot's owner can press the buttons.

@@ -1,6 +1,6 @@
 import type { On, Register } from 'claude-code'
 import { bandWriter, hookBand } from './band.tsx'
-import { attach, createBridge, endSession, finishTurn, pollOnce, showStatus, startTurn, unbindSession, type Bridge } from './bridge.ts'
+import { attach, createBridge, endSession, ensureAttached, finishTurn, pollOnce, showStatus, startTurn, unbindSession, type Bridge } from './bridge.ts'
 import { explain } from './client.ts'
 import { INSTRUCTIONS, parseBindArgs } from './format.ts'
 import type { Io } from './io.ts'
@@ -72,19 +72,22 @@ function hookCommandsAndTools(on: On, mod: Mod): void {
 
 function hookPermissions(on: On, mod: Mod): void {
   on('classic.PermissionRequest', async (_$, e, next) => {
-    if (!mod.io) return next(e)
-    if (e.tool_name !== 'AskUserQuestion') return (await openPermissionNotice(mod.io, mod.bridge, e.tool_name, e.tool_input), next(e))
-    const asked = askPermissionQuestion(mod.io, mod.bridge, e.tool_input)
-    const below = await next(e)
-    const answers = below.decision ? undefined : await asked
-    const input = (e.tool_input ?? {}) as Record<string, unknown>
-    return answers ? { ...below, decision: { behavior: 'allow' as const, updatedInput: { ...input, answers } } } : below
+    // A question gets its own notice with buttons, see the tool.call hook.
+    if (mod.io && e.tool_name !== 'AskUserQuestion') await openPermissionNotice(mod.io, mod.bridge, e.tool_name, e.tool_input)
+    return next(e)
   }).catch((_$, e, next) => next(e))
 
   on('tool.call', async (_$, e, next) => {
+    // A notice must go out under this session's id, also right after /clear.
+    if (mod.io) await ensureAttached(mod.io, mod.bridge).catch(() => undefined)
     trackCall(mod.bridge, e.tool_use_id, e.tool)
     try {
-      return await next(e)
+      if (e.tool !== 'AskUserQuestion' || !mod.io) return await next(e)
+      // The terminal dialog runs inside next(e): whichever of it and Telegram answers first wins.
+      const below = next(e)
+      const { questions } = e
+      const fromTelegram = askPermissionQuestion(mod.io, mod.bridge, e).then(answers => (answers ? { result: { questions, answers } } : below))
+      return await Promise.race([below, fromTelegram])
     } finally {
       if (mod.io) await closePermissionNotice(mod.io, mod.bridge, e.tool_use_id)
     }

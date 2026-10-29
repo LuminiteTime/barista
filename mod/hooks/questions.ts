@@ -22,7 +22,8 @@ export function askInTelegram(io: Io, bridge: Bridge, key: string, input: unknow
   return new Promise(resolve => {
     const asking: Asking = { questions, picked: questions.map(() => new Set()), isDone: questions.map(() => false), resolve }
     bridge.asking.set(key, asking)
-    void post(io, bridge, key, asking).catch(() => undefined)
+    // Kept as the notice's post, so the call ending first still finds and removes it.
+    bridge.notices.set(key, post(io, bridge, key, asking).then(() => undefined, () => undefined))
   })
 }
 
@@ -64,7 +65,7 @@ function post(io: Io, bridge: Bridge, key: string, asking: Asking): Promise<unkn
 }
 
 /** The questions as plain text; the options are on the buttons, their descriptions here. */
-export function render({ questions }: Asking): string {
+function render({ questions }: Asking): string {
   const blocks = questions.map(({ question, header, options, multiSelect }, n) => {
     const title = `${questions.length > 1 ? `${n + 1}. ` : ''}${header ? `${header}: ` : ''}${question}`
     const details = options.filter(o => o.description).map(o => `• ${o.label}: ${o.description}`)
@@ -73,7 +74,7 @@ export function render({ questions }: Asking): string {
   return `${blocks.join('\n\n')}\n\nTap an answer here or answer in the terminal.`
 }
 
-export function buttonsOf({ questions, picked, isDone }: Asking): NoticeButton[][] {
+function buttonsOf({ questions, picked, isDone }: Asking): NoticeButton[][] {
   return questions.flatMap(({ options, multiSelect }, q) => {
     const mark = (o: number) => (picked[q].has(o) ? (multiSelect ? '☑ ' : '✅ ') : multiSelect ? '☐ ' : '')
     const prefix = questions.length > 1 ? `${q + 1}. ` : ''

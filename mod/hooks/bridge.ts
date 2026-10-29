@@ -73,12 +73,17 @@ export async function unbindSession(io: Io, bridge: Bridge): Promise<string> {
   return `Unbound from ${title}.`
 }
 
+/** Attaches when nothing is attached yet or the session changed under us (/clear starts a new one). */
+export async function ensureAttached(io: Io, bridge: Bridge): Promise<void> {
+  if (!bridge.isAttached || (await io.sessionId()) !== bridge.sessionId) await attach(io, bridge)
+}
+
 /** One long-poll of the inbox; doubles as the heartbeat that keeps the binding live and the retry for a failed attach. */
 export async function pollOnce(io: Io, bridge: Bridge): Promise<void> {
   if (bridge.isPolling) return
   bridge.isPolling = true
   try {
-    if (!bridge.isAttached || (await io.sessionId()) !== bridge.sessionId) await attach(io, bridge)
+    await ensureAttached(io, bridge)
     if (!bridge.binding) return
     const query = `sessionId=${encodeURIComponent(bridge.sessionId ?? '')}&wait=${INBOX_WAIT_SECONDS}`
     const { items, binding } = await callDaemon<{ items: InboxItem[]; binding: BindingView | null }>(io, 'GET', `/inbox?${query}`)

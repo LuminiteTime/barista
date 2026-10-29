@@ -41,6 +41,6 @@ All mod logic depends on a small `Io` port built in `session.start`, which keeps
 | `GET /inbox?sessionId&wait` | long poll for messages (up to 25 s) |
 | `POST /send`, `POST /send-files` | answer text, files |
 | `POST /status` | reaction for a stage |
-| `POST /notice`, `POST /notice/close` | permission notice |
+| `POST /notice`, `POST /notice/close` | permission notice, or a question with buttons; a press comes back through the inbox |
 
 Errors are `{ error: { code, message, hint } }` with HTTP 400 (or 500 for bugs).
