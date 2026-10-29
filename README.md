@@ -23,6 +23,27 @@ You start Claude Code on your Mac as usual, type `/tg bind Work / backend`, and 
 you, in Telegram  ─▶  barista daemon  ─▶  Claude Code session  ─▶  answer back in the same topic
 ```
 
+## See it work
+
+A task sent from Telegram: the reactions follow its progress, each permission prompt posts a notice, and the answer comes back as a reply.
+
+<img src="docs/static/img/demo/chat.gif" alt="A message in a Telegram topic becomes a prompt in Claude Code; the answer comes back as a reply" width="100%">
+
+Claude asks a question: the options arrive as buttons, and a tap answers it in the terminal too.
+
+<img src="docs/static/img/demo/question.gif" alt="Claude's question in Telegram with a button per option; a tap answers it" width="100%">
+
+<table>
+<tr>
+<td width="55%"><img src="docs/static/img/demo/bind.gif" alt="/tg bind turns the barista band green and starts Remote Control"></td>
+<td><img src="docs/static/img/demo/files.png" alt="Claude sends the shop logo to the topic"></td>
+</tr>
+<tr>
+<td>One command binds the session. The band above the prompt shows where it listens.</td>
+<td>Claude sends files: screenshots, logs, documents.</td>
+</tr>
+</table>
+
 ## What you get
 
 - One command per session to bind it: `/tg bind <chat> / <topic>`, or just ask Claude ("bind to topic backend in Work").

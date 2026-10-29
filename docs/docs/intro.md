@@ -9,6 +9,10 @@ barista binds a running Claude Code session to a Telegram chat or forum topic th
 
 You keep working in the terminal as usual. Telegram is a second prompt box, handy when you are away from the laptop.
 
+![A message in a Telegram topic becomes a prompt in Claude Code; the answer comes back as a reply](/img/demo/chat.gif)
+
+![Claude's question in Telegram with a button per option; a tap answers it](/img/demo/question.gif)
+
 ## What it does
 
 - Binds by name: `/tg bind Work / backend`. Forum chats bind only by topic; plain groups and the private chat bind whole.
