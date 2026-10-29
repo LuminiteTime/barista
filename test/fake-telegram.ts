@@ -5,6 +5,9 @@ export type Call = { method: string; params: Record<string, unknown>; multipart:
 type Reply = unknown | { error_code: number; description: string; retry_after?: number }
 export type Handler = (params: Record<string, unknown>) => Reply | Promise<Reply>
 
+/** The owner and the bot alone, so every owner message is for the bot unless a test says otherwise. */
+const DEFAULTS: Record<string, Handler> = { getChatMemberCount: () => 2 }
+
 /** A tiny stand-in for api.telegram.org: answers Bot API methods from handlers and records every call. */
 export async function fakeTelegram(handlers: Record<string, Handler> = {}) {
   const calls: Call[] = []
@@ -17,7 +20,7 @@ export async function fakeTelegram(handlers: Record<string, Handler> = {}) {
     const body = await read(req)
     const params = multipart ? await formFields(body, contentType) : body.length ? JSON.parse(body.toString()) : {}
     calls.push({ method, params, multipart })
-    const reply = await (handlers[method] ?? (() => true))(params)
+    const reply = await (handlers[method] ?? DEFAULTS[method] ?? (() => true))(params)
     if (isRaw(reply)) return void res.writeHead(reply.httpStatus).end(reply.raw)
     res.setHeader('content-type', 'application/json')
     res.end(JSON.stringify(toEnvelope(reply)))

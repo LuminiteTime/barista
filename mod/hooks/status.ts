@@ -14,7 +14,7 @@ export function bandFor(bridge: Bridge, problem?: unknown): Band {
     const code = problem instanceof DaemonError ? problem.code : 'INTERNAL'
     return { tone: 'down', text: code, hint: code === 'DAEMON_DOWN' ? 'run: barista start' : 'run: barista doctor' }
   }
-  if (bridge.waiting) return { tone: 'waiting', text: `waiting for a message in ${bindTarget(bridge.waiting.args)}`, hint: 'send any message there · /tg unbind cancels' }
+  if (bridge.waiting) return { tone: 'waiting', text: `waiting for a message in ${bindTarget(bridge.waiting.args)}`, hint: `${timeLeft(bridge.waiting.triesLeft)} left · send any message there · /tg unbind cancels` }
   if (bridge.binding) return { tone: 'bound', text: bridge.binding.title, hint: 'answers go to Telegram · /tg unbind' }
   return { tone: 'idle', text: 'not bound', hint: BIND_HINT }
 }
@@ -24,10 +24,15 @@ export async function describeStatus(io: Io, bridge: Bridge): Promise<string> {
   const health = await callDaemon<Health>(io, 'GET', '/health').catch((error: unknown) => error)
   if (!isHealth(health)) return `✗ barista daemon unreachable. ${explain(health)}`
   const daemon = `daemon up, bot @${health.bot}`
-  if (bridge.waiting) return `⏳ Waiting for a message in ${bindTarget(bridge.waiting.args)} (${daemon}); send any message there to finish binding.`
+  if (bridge.waiting) return `⏳ Waiting for a message in ${bindTarget(bridge.waiting.args)} (${daemon}), ${timeLeft(bridge.waiting.triesLeft)} left; send any message there to finish binding.`
   if (!bridge.binding) return `○ Not bound (${daemon}). Bind this session: ${BIND_HINT}`
   const remote = bridge.remoteUrl ? ` Remote Control: ${bridge.remoteUrl}` : ''
   return `● Bound to ${bridge.binding.title} (${daemon}). Messages there arrive here; answers go back.${remote}`
+}
+
+/** Seconds as m:ss. */
+function timeLeft(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
 
 function isHealth(value: unknown): value is Health {

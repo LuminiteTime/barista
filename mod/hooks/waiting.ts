@@ -4,7 +4,7 @@ import { DaemonError } from './client.ts'
 import { bindTarget, type BindArgs } from './format.ts'
 import { startRemoteControl } from './remote.ts'
 
-/** The poll timer retries once a second: two minutes. */
+/** The poll timer retries once a second, so this is also the seconds left: two minutes. */
 const WAIT_TRIES = 120
 const UNSEEN = new Set(['CHAT_UNKNOWN', 'TOPIC_UNKNOWN'])
 
@@ -35,8 +35,10 @@ export async function retryWaitingBind(io: Io, bridge: Bridge): Promise<void> {
     await bind(io, bridge, waiting.args)
     io.toast(`barista: bound to ${bridge.binding?.title}`)
   } catch (error) {
-    if (isUnseen(error, waiting.args) && waiting.triesLeft > 0) return void (bridge.waiting = waiting)
+    const keepsWaiting = isUnseen(error, waiting.args) && waiting.triesLeft > 0
+    if (keepsWaiting) bridge.waiting = waiting
     showStatus(io, bridge)
+    if (keepsWaiting) return
     io.toast(`barista: no message arrived in ${bindTarget(waiting.args)}; run /tg bind again`)
   }
 }

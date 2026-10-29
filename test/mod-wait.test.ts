@@ -51,6 +51,14 @@ test('binding a chat the bot has not seen waits for a message there, then binds 
   assert.match(toasts.at(-1) ?? '', /bound to Мастерская \/ Test topic 1/)
 })
 
+test('the band counts the wait down', async t => {
+  const { io, bands, bridge } = await freshDaemon(t)
+  await bindOrWait(io, bridge, TOPIC)
+  assert.match(bands.at(-1)?.hint ?? '', /2:00 left/)
+  await retryWaitingBind(io, bridge)
+  assert.match(bands.at(-1)?.hint ?? '', /1:59 left/)
+})
+
 test('the wait gives up when no message comes', async t => {
   const { io, toasts, bands, bridge } = await freshDaemon(t)
   await bindOrWait(io, bridge, TOPIC)

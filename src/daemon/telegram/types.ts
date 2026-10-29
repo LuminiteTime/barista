@@ -6,6 +6,7 @@ export type MessageEntity = {
   length: number
   url?: string
   language?: string
+  user?: User
 }
 
 export type User = { id: number; first_name: string; username?: string; is_bot?: boolean }
@@ -47,6 +48,8 @@ export type Message = {
   location?: unknown
   contact?: unknown
   forum_topic_created?: { name: string }
+  new_chat_members?: User[]
+  left_chat_member?: User
   forum_topic_edited?: { name?: string }
 }
 

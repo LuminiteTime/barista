@@ -20,7 +20,7 @@ You can also ask Claude in plain words ("listen to topic backend in Work"); the 
 - `--create` creates the topic when the bot has not seen it.
 - `--force` takes a topic held by another live session. A session counts as live while it polls; one that has been silent for a minute loses the topic to anyone.
 
-The bot learns chat and topic names only from messages it receives; Telegram has no call that lists a bot's chats or topics, and being an admin does not change that. When you bind to a chat or topic the bot has not seen, the session waits two minutes for any message there and binds when it arrives; the band shows `⏳ waiting for a message in …`. `/tg unbind` cancels the wait. Quotes around names are optional: `/tg bind "My chat" / "My topic"` works too.
+The bot learns chat and topic names only from messages it receives; Telegram has no call that lists a bot's chats or topics, and being an admin does not change that. When you bind to a chat or topic the bot has not seen, the session waits two minutes for any message there and binds when it arrives; the band shows `⏳ waiting for a message in …` with the time left. `/tg unbind` cancels the wait. Quotes around names are optional: `/tg bind "My chat" / "My topic"` works too.
 
 After `/clear` the session id changes; the mod moves the binding to the new id by itself.
 
@@ -28,7 +28,9 @@ A band above the prompt shows where the session listens: `☕ barista ● Work /
 
 ## Messages
 
-Each message in the bound topic becomes a prompt that starts with `[Telegram · <chat / topic>]`. Albums arrive as one prompt. Files are saved to `~/.barista/files/<chat>/<topic>/` and the prompt lists their paths. They are deleted after 7 days. Voice messages carry a transcript when whisper.cpp is installed. Replying to a message adds the quoted text (or the start of the original message) to the prompt.
+In a group where other people are, only your messages that reply to one of the bot's messages or mention it (`@yourbot`) reach Claude, so talking to the others does not start turns. When only you and the bot are in the chat, and in the private chat with the bot, every message does. The member count is checked every 10 minutes and whenever someone joins or leaves.
+
+Each such message becomes a prompt that starts with `[Telegram · <chat / topic>]`. Albums arrive as one prompt. Files are saved to `~/.barista/files/<chat>/<topic>/` and the prompt lists their paths. They are deleted after 7 days. Voice messages carry a transcript when whisper.cpp is installed. Replying to a message adds the quoted text (or the start of the original message) to the prompt.
 
 `/stop` interrupts the running turn. Edited messages are ignored.
 

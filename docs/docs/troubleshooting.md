@@ -28,6 +28,7 @@ Start with `barista doctor` and `barista logs`. Errors in Claude Code and in Tel
 - The bot cannot read the group. Admins read everything; otherwise privacy mode must be off (`barista doctor` shows it). Disable it with @BotFather, then remove and re-add the bot to the group: Telegram applies the change on join.
 - The chat is not in the `chats` allowlist, if you set one.
 - Only the owner's messages count; messages from other members are ignored.
+- In a group with other people, a message must reply to the bot or mention it.
 
 ## "Another poller holds this bot token (409)"
 

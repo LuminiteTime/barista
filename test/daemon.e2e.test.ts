@@ -162,3 +162,23 @@ test('a corrupt state.json is set aside instead of crash-looping', async () => {
   await daemon.stop()
   await tg.close()
 })
+
+test('in a group with other people, only messages addressed to the bot reach the session', async () => {
+  const { tg, queue, p, api } = await setup()
+  tg.handlers.getChatMemberCount = () => 5
+  const daemon = await startDaemon(p)
+  await sleep(100)
+  await api('POST', '/bind', { sessionId: 's1', chat: 'Мастерская', topic: 'Test topic 1' })
+
+  const mention = topicMessage(3, '@test_bot what is up')
+  mention.message!.entities = [{ type: 'mention', offset: 0, length: 9 }]
+  queue.push([topicMessage(2, 'talking to friends'), mention])
+  const inbox = await api('GET', '/inbox?sessionId=s1&wait=5')
+  await sleep(1_200) // the album window: an undelivered message would have arrived by now
+  const late = await api('GET', '/inbox?sessionId=s1&wait=0')
+  const texts = [inbox, late].flatMap(r => (r.body as { items: { text: string }[] }).items.map(i => i.text))
+  assert.deepEqual(texts, ['@test_bot what is up'])
+  assert.equal(tg.named('setMessageReaction').length, 0, 'the message for friends gets no reaction')
+  await daemon.stop()
+  await tg.close()
+})

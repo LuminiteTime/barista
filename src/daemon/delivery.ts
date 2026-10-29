@@ -1,6 +1,7 @@
 import type { Binding } from './bindings.ts'
 import { inboxOf, type Core } from './core.ts'
 import { AlbumCollector } from './inbound/album.ts'
+import { Audience } from './inbound/audience.ts'
 import { addNote, buildInbound } from './inbound/media.ts'
 import { routeUpdate } from './inbound/route.ts'
 import { transcribe } from './inbound/transcribe.ts'
@@ -13,19 +14,32 @@ const ALBUM_QUIET_MS = 1_000
 export function createDelivery(core: Core) {
   let inOrder = Promise.resolve()
   // ponytail: one queue for all chats keeps "photo, then question" in order; per-binding queues if downloads get slow
-  const albums = new AlbumCollector(ALBUM_QUIET_MS, messages => void (inOrder = inOrder.then(() => deliver(core, messages))))
+  const audience = new Audience(core.api, core.bot, core.now)
+  const deliverIfForBot = async (messages: Message[]) => {
+    if (await audience.isForBot(messages)) await deliver(core, messages)
+  }
+  const albums = new AlbumCollector(ALBUM_QUIET_MS, messages => void (inOrder = inOrder.then(() => deliverIfForBot(messages))))
 
   return async function handleUpdates(updates: Update[]): Promise<void> {
     for (const update of updates) {
       if (!isAllowedChat(core, update)) continue
       core.registry.observe(update)
+      forgetOnMembershipChange(audience, update)
       const route = routeUpdate(update, { ownerId: core.config.ownerId, bindings: core.bindings, now: core.now() })
       if (route.kind === 'deliver') albums.add(route.message)
       if (route.kind === 'stop') inboxOf(core, route.binding.sessionId).push({ kind: 'stop' })
-      if (route.kind === 'unsupported') await core.status.set(route.binding, [route.message.message_id], 'unsupported')
+      if (route.kind === 'unsupported' && (await audience.isForBot([route.message]))) {
+        await core.status.set(route.binding, [route.message.message_id], 'unsupported')
+      }
     }
     core.persist()
   }
+}
+
+function forgetOnMembershipChange(audience: Audience, update: Update): void {
+  const joinedOrLeft = update.message?.new_chat_members || update.message?.left_chat_member ? update.message.chat.id : undefined
+  const chatId = update.my_chat_member?.chat.id ?? joinedOrLeft
+  if (chatId !== undefined) audience.forget(chatId)
 }
 
 function isAllowedChat(core: Core, update: Update): boolean {
