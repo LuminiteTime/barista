@@ -42,11 +42,11 @@ npm ci && npm run build && npm install -g .
 barista setup
 ```
 
-Setup asks for the token, checks it with Telegram, and waits for you to send `/start` to the bot in a private chat. That message tells barista your user id; the bot ignores everyone else. Then it offers the voice tools (about 150 MB with the model), installs the launchd agent `dev.barista.daemon`, and installs the Claude Code mod from the package.
+Setup asks for the token (the input is hidden), checks it with Telegram, and waits for you to send `/start` to the bot in a private chat. That message tells barista your user id; the bot ignores everyone else. Then it offers the voice tools (about 150 MB with the model), installs the launchd agent `dev.barista.daemon`, and installs the Claude Code mod from the package.
 
 | Flag | Effect |
 |---|---|
-| `--token <token>` | skip the token prompt |
+| `--token-file <path>` | read the token from a file instead of asking: the bare token, or an `.env` line such as `TELEGRAM_BOT_TOKEN=…`. There is no `--token` flag, because `ps` and shell history would show it |
 | `--owner <id>` | skip the `/start` step |
 | `--chats <id,id>` | only these chats are ever read; the bot learns them at start, so you can bind by name right away |
 | `--yes` | accept every offer |

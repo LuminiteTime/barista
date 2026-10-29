@@ -18,7 +18,8 @@ export async function openPermissionNotice(io: Io, bridge: Bridge, tool: string,
   if (!bridge.binding) return
   const callId = [...bridge.calls].find(([id, name]) => name === tool && !bridge.notices.has(id))?.[0]
   const key = callId ?? `perm-${++counter}`
-  const text = `🔐 Claude asks to run ${tool}: ${preview(input)}\nAnswer in the terminal or in Remote Control.`
+  const where = bridge.remoteUrl ? `in Remote Control: ${bridge.remoteUrl}` : 'in Remote Control'
+  const text = `🔐 Claude asks to run ${tool}: ${preview(input)}\nAnswer in the terminal or ${where}`
   const posting = callDaemon(io, 'POST', '/notice', { sessionId: bridge.sessionId, key, text }).then(
     () => undefined,
     () => void bridge.notices.delete(key),

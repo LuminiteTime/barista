@@ -18,7 +18,7 @@ Start with `barista doctor` and `barista logs`. Errors in Claude Code and in Tel
 | `NOT_BOUND` | this session is not bound | `/tg bind …` |
 | `NO_RIGHTS` | Telegram refused to create the topic | give the bot the Manage Topics admin right |
 | `FILE_NOT_FOUND` | a file Claude tried to send does not exist | check the path |
-| `FILE_TOO_BIG` | over Telegram's bot limits: 20 MB download, 50 MB upload | compress or split |
+| `FILE_TOO_BIG` | over Telegram's bot limits: 20 MB download, 50 MB upload. In a batch, only that file is left out | compress or split |
 | `TG_API` | Telegram rejected a request | the message includes Telegram's description |
 | `BAD_REQUEST`, `INTERNAL` | a bug in barista | open an issue with the lines from `barista logs` |
 

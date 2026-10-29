@@ -13,7 +13,7 @@ import { callDaemon } from './socket.ts'
 
 const USAGE = `barista — Claude Code ⇄ Telegram
 
-  barista setup [--token T] [--owner ID] [--chats ID,ID] [--yes] [--no-voice] [--no-mod]
+  barista setup [--token-file PATH] [--owner ID] [--chats ID,ID] [--yes] [--no-voice] [--no-mod]
   barista doctor        check every prerequisite and say how to fix it
   barista status        daemon health and session bindings
   barista logs          follow the daemon log
@@ -24,7 +24,7 @@ const USAGE = `barista — Claude Code ⇄ Telegram
 const { positionals, values } = parseArgs({
   allowPositionals: true,
   options: {
-    token: { type: 'string' },
+    'token-file': { type: 'string' },
     owner: { type: 'string' },
     chats: { type: 'string' },
     yes: { type: 'boolean', default: false },
@@ -38,7 +38,7 @@ const p = paths()
 const commands: Record<string, () => Promise<unknown>> = {
   setup: () =>
     setup(p, {
-      token: values.token,
+      tokenFile: values['token-file'],
       owner: values.owner ? Number(values.owner) : undefined,
       chats: values.chats?.split(',').map(Number),
       yes: values.yes,

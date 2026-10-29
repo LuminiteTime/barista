@@ -26,15 +26,15 @@ After `/clear` the session id changes; the mod moves the binding to the new id b
 
 ## Messages
 
-Each message in the bound topic becomes a prompt that starts with `[Telegram · <chat / topic>]`. Albums arrive as one prompt. Files are saved to `~/.barista/files/<chat>/<topic>/` and the prompt lists their paths. Voice messages carry a transcript when whisper.cpp is installed. Replying to a message adds the quoted text (or the start of the original message) to the prompt.
+Each message in the bound topic becomes a prompt that starts with `[Telegram · <chat / topic>]`. Albums arrive as one prompt. Files are saved to `~/.barista/files/<chat>/<topic>/` and the prompt lists their paths. They are deleted after 7 days. Voice messages carry a transcript when whisper.cpp is installed. Replying to a message adds the quoted text (or the start of the original message) to the prompt.
 
 `/stop` interrupts the running turn. Edited messages are ignored.
 
 ## Answers and files
 
-Every final answer of a bound session goes to its topic, rendered as Telegram rich text (Markdown, tables, code blocks, links). Long answers are split on paragraph boundaries.
+Every final answer of a bound session goes to its topic, rendered as Telegram rich text (Markdown, tables, code blocks, links). An answer to a Telegram message is a reply to that message, so with several questions in flight you can tell which answer belongs where. Answers to prompts typed in the terminal are plain messages. Long answers are split on paragraph boundaries; only the first part is the reply.
 
-Claude decides when a file says more than text and calls `telegram_send_files`: photos and videos go as an album, everything else as documents. Telegram limits bots to 50 MB per upload and 10 MB per photo; bigger photos are sent as documents.
+Claude decides when a file says more than text and calls `telegram_send_files`: photos and videos go as an album, everything else as documents. Files sent during a Telegram turn reply to its message too. Telegram limits bots to 50 MB per upload and 10 MB per photo; bigger photos are sent as documents. A file over 50 MB, or one that does not exist, is left out and named in the tool's answer; the rest of the batch still goes.
 
 ## Reactions
 
@@ -52,4 +52,4 @@ No reaction means no session listens in that topic.
 
 ## Permissions
 
-Binding runs `/remote-control`, so the session is also open in the Claude app. When Claude needs permission, the topic gets one short line, for example `🔐 Claude asks to run Bash: npm publish`. Answer in the terminal or in the app. The notice is deleted when that tool call ends (allowed, denied or finished), when the turn ends, or when the session closes. If the session dies without closing, the daemon removes it within a minute and a half.
+Binding runs `/remote-control`, so the session is also open in the Claude app. When Claude needs permission, the topic gets one short notice, for example `🔐 Claude asks to run Bash: npm publish`, with the session's Remote Control link. Answer in the terminal or in the app. The notice is deleted when that tool call ends (allowed, denied or finished), when the turn ends, or when the session closes. If the session dies without closing, the daemon removes it within a minute and a half.

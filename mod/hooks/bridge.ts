@@ -18,6 +18,8 @@ export type Bridge = {
   notices: Map<string, Promise<void>>
   /** Tool calls in flight: tool_use_id → tool name. */
   calls: Map<string, string>
+  /** This session in Remote Control, once it is on. */
+  remoteUrl?: string
   isPolling: boolean
 }
 
@@ -94,9 +96,16 @@ export async function startTurn(io: Io, bridge: Bridge, turnId: string, text: st
 export async function finishTurn(io: Io, bridge: Bridge, reason: TurnEnd, answer: string): Promise<void> {
   bridge.runningTurnId = undefined
   await setStages(io, bridge, bridge.current, END_STAGE[reason])
-  bridge.current = []
+  const replyTo = replyTarget(bridge)
   const fallback = reason === 'answer' || reason === 'aborted' ? '' : `💔 The turn ended with ${reason}.`
-  await mirror(io, bridge, answer || fallback)
+  bridge.current = []
+  await mirror(io, bridge, answer || fallback, replyTo)
+}
+
+/** The Telegram message the running turn answers: the latest it carries. None for a terminal prompt. */
+export function replyTarget(bridge: Bridge): number | undefined {
+  const asked = bridge.current.filter(p => p.chatId === bridge.binding?.chatId).at(-1)
+  return asked?.messageIds[0]
 }
 
 /** The session is closing: whatever Telegram is still waiting on will not run. */
@@ -113,11 +122,11 @@ export async function setStages(io: Io, bridge: Bridge, messages: Pending[], sta
 }
 
 /** Sends the answer, waiting out a short daemon outage (restart, crash loop) rather than losing it. */
-export async function mirror(io: Io, bridge: Bridge, text: string): Promise<void> {
+export async function mirror(io: Io, bridge: Bridge, text: string, replyTo?: number): Promise<void> {
   if (!bridge.binding || !text.trim()) return
   for (let attempt = 0; ; attempt++) {
     try {
-      return void (await callDaemon(io, 'POST', '/send', { sessionId: bridge.sessionId, text }))
+      return void (await callDaemon(io, 'POST', '/send', { sessionId: bridge.sessionId, text, replyTo }))
     } catch (error) {
       const isDown = error instanceof DaemonError && error.code === 'DAEMON_DOWN'
       if (!isDown || attempt >= MIRROR_RETRIES) return io.toast(`barista: ${explain(error)}`)

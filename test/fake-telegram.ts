@@ -12,9 +12,10 @@ export async function fakeTelegram(handlers: Record<string, Handler> = {}) {
     const url = req.url ?? ''
     if (url.startsWith('/file/')) return void res.end('file-bytes')
     const method = url.split('/').pop() ?? ''
+    const contentType = req.headers['content-type'] ?? ''
+    const multipart = contentType.startsWith('multipart/')
     const body = await read(req)
-    const multipart = (req.headers['content-type'] ?? '').startsWith('multipart/')
-    const params = multipart || !body ? {} : JSON.parse(body)
+    const params = multipart ? await formFields(body, contentType) : body.length ? JSON.parse(body.toString()) : {}
     calls.push({ method, params, multipart })
     const reply = await (handlers[method] ?? (() => true))(params)
     if (isRaw(reply)) return void res.writeHead(reply.httpStatus).end(reply.raw)
@@ -47,8 +48,24 @@ function toEnvelope(reply: Reply) {
   return { ok: true, result: reply }
 }
 
-async function read(req: IncomingMessage): Promise<string> {
-  let body = ''
-  for await (const chunk of req) body += chunk
-  return body
+async function read(req: IncomingMessage): Promise<Buffer> {
+  const chunks: Buffer[] = []
+  for await (const chunk of req) chunks.push(chunk)
+  return Buffer.concat(chunks)
+}
+
+/** The text fields of an upload (files left out), JSON values parsed back. */
+async function formFields(body: Buffer, contentType: string): Promise<Record<string, unknown>> {
+  const form = await new Response(new Uint8Array(body), { headers: { 'content-type': contentType } }).formData()
+  const fields: Record<string, unknown> = {}
+  for (const [key, value] of form) if (typeof value === 'string') fields[key] = parseJson(value)
+  return fields
+}
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value
+  }
 }

@@ -19,7 +19,7 @@ export function routesFor(core: Core): Routes {
     'POST /unbind': async ({ body }) => unbind(core, as<{ sessionId: string }>(body, 'sessionId').sessionId),
     'GET /inbox': ({ query, signal }) => inbox(core, query, signal),
     'POST /send': async ({ body }) => ({ messageIds: await sendAnswer(core, as<SendRequest>(body, 'sessionId', 'text')) }),
-    'POST /send-files': async ({ body }) => ({ messageIds: await sendArtifacts(core, as<SendFilesRequest>(body, 'sessionId', 'files')) }),
+    'POST /send-files': ({ body }) => sendArtifacts(core, as<SendFilesRequest>(body, 'sessionId', 'files')),
     'POST /status': ({ body }) => setStatus(core, as<StatusRequest>(body, 'sessionId', 'messageIds', 'stage')),
     'POST /notice': ({ body }) => openNotice(core, as<NoticeRequest>(body, 'sessionId', 'key', 'text')),
     'POST /notice/close': ({ body }) => {

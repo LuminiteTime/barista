@@ -3,6 +3,7 @@ import type { Server } from 'node:http'
 import { loadConfig } from './config.ts'
 import { createCore, snapshot, type Core } from './core.ts'
 import { createDelivery } from './delivery.ts'
+import { housekeep } from './housekeeping.ts'
 import { log } from './log.ts'
 import { paths as defaultPaths, type Paths } from './paths.ts'
 import { routesFor } from './routes.ts'
@@ -15,6 +16,7 @@ import { isPollerConflict, runPoller } from './telegram/poller.ts'
 import type { BotInfo } from './telegram/types.ts'
 
 const SWEEP_EVERY_MS = 30_000
+const HOUSEKEEP_EVERY_MS = 3_600_000
 
 export type RunningDaemon = { core: Core; server: Server; stop: () => Promise<void> }
 
@@ -40,10 +42,10 @@ export async function startDaemon(paths: Paths = defaultPaths()): Promise<Runnin
     onOffset: offset => ((core.offset = offset), core.persist()),
     onError: reportPollError,
   })
-  const sweeping = setInterval(() => void sweep(core).catch(error => log('warn', 'sweep failed', error)), SWEEP_EVERY_MS)
+  const timers = startChores(core)
   log('info', `barista daemon up as @${bot.username}, socket ${paths.socket}`)
   const stop = async () => {
-    clearInterval(sweeping)
+    timers.forEach(clearInterval)
     controller.abort()
     status.stopAll()
     const closed = new Promise(resolve => server.close(resolve))
@@ -53,6 +55,13 @@ export async function startDaemon(paths: Paths = defaultPaths()): Promise<Runnin
     await saver.flush()
   }
   return { core, server, stop }
+}
+
+/** Periodic cleanup: dead sessions every 30 s, disk usage at start and hourly. */
+function startChores(core: Core): NodeJS.Timeout[] {
+  const chore = (name: string, work: (core: Core) => Promise<void>) => () => void work(core).catch(error => log('warn', `${name} failed`, error))
+  chore('housekeeping', housekeep)()
+  return [setInterval(chore('sweep', sweep), SWEEP_EVERY_MS), setInterval(chore('housekeeping', housekeep), HOUSEKEEP_EVERY_MS)]
 }
 
 function reportPollError(error: unknown): void {

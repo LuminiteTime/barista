@@ -26,7 +26,7 @@ you, in Telegram  ─▶  barista daemon  ─▶  Claude Code session  ─▶  a
 ## What you get
 
 - One command per session to bind it: `/tg bind <chat> / <topic>`, or just ask Claude ("bind to topic backend in Work").
-- Every final answer is mirrored to the topic, including answers to prompts you typed in the terminal. Markdown, tables, code and links render natively in Telegram.
+- Every final answer is mirrored to the topic, including answers to prompts you typed in the terminal. An answer to a Telegram message comes as a reply to it. Markdown, tables, code and links render natively in Telegram.
 - Claude sends files when they say more than text: screenshots, videos, logs, documents, albums.
 - You can send text, photos, videos, files, albums and voice messages. Voice is transcribed locally with whisper.cpp.
 - Reactions show where each of your messages is:
@@ -42,7 +42,7 @@ you, in Telegram  ─▶  barista daemon  ─▶  Claude Code session  ─▶  a
   | 🤷 | message type not supported |
 
   No reaction means no session listens there right now; such messages are ignored.
-- Binding also turns on Remote Control, so permission prompts can be answered from the Claude app on your phone. The topic gets a short notice that is deleted when the question is settled and the call ends.
+- Binding also turns on Remote Control, so permission prompts can be answered from the Claude app on your phone. The topic gets a short notice with the session's Remote Control link; it is deleted when the question is settled and the call ends.
 - `/stop` in the topic interrupts the current turn. Replying to a specific message quotes it into the prompt.
 
 ## How it works
@@ -96,9 +96,9 @@ npm ci && npm run build && npm install -g .
 barista setup
 ```
 
-It asks for the bot token, then waits until you send `/start` to the bot in a private chat (that is how it learns your Telegram user id; only you can talk to your sessions). Then it offers to install the voice tools, starts the daemon as a launchd agent, and installs the Claude Code mod.
+It asks for the bot token (input hidden), then waits until you send `/start` to the bot in a private chat (that is how it learns your Telegram user id; only you can talk to your sessions). Then it offers to install the voice tools, starts the daemon as a launchd agent, and installs the Claude Code mod.
 
-Optional flags: `--token`, `--owner <your user id>`, `--chats <id,id>` (read only these chats; the bot learns them at start, so binding by name works right away), `--yes`, `--no-voice`, `--no-mod`.
+Optional flags: `--token-file <path>` (the bare token or an `.env` line; there is no `--token`, since `ps` and shell history would show it), `--owner <your user id>`, `--chats <id,id>` (read only these chats; the bot learns them at start, so binding by name works right away), `--yes`, `--no-voice`, `--no-mod`.
 
 ### 5. Check it
 
@@ -151,12 +151,12 @@ The bot only knows chats and topics it has seen in messages (Telegram has no way
 | `NOT_FORUM` | a topic was given for a chat without topics | bind the chat alone |
 | `TOPIC_TAKEN` | another live session listens there | unbind it, or `--force` |
 | `NO_RIGHTS` | Telegram refused to create a topic | give the bot "Manage Topics" |
-| `FILE_TOO_BIG` | over Telegram's bot limits (20 MB in, 50 MB out) | compress or split the file |
+| `FILE_TOO_BIG` | over Telegram's bot limits (20 MB in, 50 MB out); the rest of a batch still goes | compress or split the file |
 | `TG_API` | Telegram rejected a request | the message carries Telegram's reason |
 
 If messages in a group never get a 👀, the bot probably cannot read them: make it an admin or disable privacy mode. A repeated 409 warning in the log means another program polls the same token (an old script, another bot framework, the official Telegram plugin); one token allows one poller.
 
-Everything barista keeps is in `~/.barista`: `config.json` (token, mode 600), `state.json`, received `files/`, `daemon.log`.
+Everything barista keeps is in `~/.barista`: `config.json` (token, mode 600), `state.json`, received `files/` (kept 7 days), `daemon.log` (rotated at 5 MB). Bindings of sessions unseen for 30 days are forgotten.
 
 ## Development
 

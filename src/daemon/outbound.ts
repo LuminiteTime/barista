@@ -4,8 +4,10 @@ import { BaristaError } from './errors.ts'
 import { splitText } from './format/split.ts'
 import { TelegramError, type Api } from './telegram/api.ts'
 
-export type Target = { chatId: number; threadId?: number }
+/** Where a message goes; `replyTo` makes the first message sent a reply to that message. */
+export type Target = { chatId: number; threadId?: number; replyTo?: number }
 export type OutboundFile = { path: string; caption?: string }
+export type SentFiles = { messageIds: number[]; skipped: string[] }
 
 /** Bot API upload cap for bots. */
 export const UPLOAD_LIMIT = 50 * 1024 * 1024
@@ -26,34 +28,40 @@ type Sent = { message_id: number }
 /** Sends Claude's Markdown as rich messages; falls back to plain text if Telegram rejects the markup. */
 export async function sendText(api: Api, target: Target, markdown: string): Promise<number[]> {
   const ids: number[] = []
-  for (const chunk of splitText(markdown)) ids.push(...(await sendChunk(api, target, chunk)))
+  for (const [index, chunk] of splitText(markdown).entries()) ids.push(...(await sendChunk(api, onlyFirst(target, index), chunk)))
   return ids
 }
 
 async function sendChunk(api: Api, target: Target, markdown: string): Promise<number[]> {
   try {
-    const sent = await api.call<Sent>('sendRichMessage', { ...where(target), rich_message: { markdown } })
+    const sent = await api.call<Sent>('sendRichMessage', { ...addressed(target), rich_message: { markdown } })
     return [sent.message_id]
   } catch (error) {
     if (!(error instanceof TelegramError) || error.status !== 400) throw error
     const ids: number[] = []
-    for (const text of splitText(markdown, PLAIN_LIMIT)) {
-      ids.push((await api.call<Sent>('sendMessage', { ...where(target), text })).message_id)
+    for (const [index, text] of splitText(markdown, PLAIN_LIMIT).entries()) {
+      ids.push((await api.call<Sent>('sendMessage', { ...addressed(onlyFirst(target, index)), text })).message_id)
     }
     return ids
   }
 }
 
-/** Sends files as photos/videos/audio/documents; photos and videos together go as albums of up to 10. */
-export async function sendFiles(api: Api, target: Target, files: OutboundFile[], caption?: string): Promise<number[]> {
-  const prepared = await Promise.all(files.map(prepare))
-  const groups = groupForAlbums(prepared)
+/**
+ * Sends files as photos/videos/audio/documents; photos and videos together go as albums of up to 10.
+ * A file that cannot go (missing, over 50 MB) is skipped and named; only when none can go is it an error.
+ */
+export async function sendFiles(api: Api, target: Target, files: OutboundFile[], caption?: string): Promise<SentFiles> {
+  const checked = await Promise.all(files.map(prepare))
+  const refused = checked.filter((c): c is BaristaError => c instanceof BaristaError)
+  const prepared = checked.filter((c): c is Prepared => !(c instanceof BaristaError))
+  if (prepared.length === 0) throw refused[0]
   const ids: number[] = []
-  for (const [index, group] of groups.entries()) {
+  for (const [index, group] of groupForAlbums(prepared).entries()) {
+    const to = onlyFirst(target, index)
     const groupCaption = index === 0 ? caption : undefined
-    ids.push(...(group.length === 1 ? await sendOne(api, target, group[0], groupCaption) : await sendAlbum(api, target, group, groupCaption)))
+    ids.push(...(group.length === 1 ? await sendOne(api, to, group[0], groupCaption) : await sendAlbum(api, to, group, groupCaption)))
   }
-  return ids
+  return { messageIds: ids, skipped: refused.map(error => error.message) }
 }
 
 export async function postNotice(api: Api, target: Target, text: string): Promise<number> {
@@ -68,10 +76,20 @@ export function where(target: Target): { chat_id: number; message_thread_id?: nu
   return { chat_id: target.chatId, message_thread_id: target.threadId }
 }
 
-async function prepare(file: OutboundFile): Promise<Prepared> {
+/** `where`, plus the reply; a deleted original still lets the message through. */
+function addressed(target: Target) {
+  const reply = target.replyTo === undefined ? undefined : { message_id: target.replyTo, allow_sending_without_reply: true }
+  return { ...where(target), reply_parameters: reply }
+}
+
+function onlyFirst(target: Target, index: number): Target {
+  return index === 0 ? target : { ...target, replyTo: undefined }
+}
+
+async function prepare(file: OutboundFile): Promise<Prepared | BaristaError> {
   const info = await stat(file.path).catch(() => undefined)
-  if (!info?.isFile()) throw new BaristaError('FILE_NOT_FOUND', `No file at ${file.path}.`, 'Pass an absolute path to an existing file.')
-  if (info.size > UPLOAD_LIMIT) throw new BaristaError('FILE_TOO_BIG', `${file.path} is over 50 MB.`, 'Telegram bots cannot upload more; compress or split it.')
+  if (!info?.isFile()) return new BaristaError('FILE_NOT_FOUND', `No file at ${file.path}.`, 'Pass an absolute path to an existing file.')
+  if (info.size > UPLOAD_LIMIT) return new BaristaError('FILE_TOO_BIG', `${file.path} is over 50 MB.`, 'Telegram bots cannot upload more; compress or split it.')
   const kind = KIND_BY_EXT[extname(file.path).toLowerCase()] ?? 'document'
   return { ...file, kind: kind === 'photo' && info.size > PHOTO_LIMIT ? 'document' : kind }
 }
@@ -90,13 +108,13 @@ function chunk(files: Prepared[]): Prepared[][] {
 }
 
 async function sendOne(api: Api, target: Target, file: Prepared, caption?: string): Promise<number[]> {
-  const params = { ...where(target), caption: file.caption ?? caption }
+  const params = { ...addressed(target), caption: file.caption ?? caption }
   return [(await api.upload<Sent>(METHOD[file.kind], params, { [file.kind]: file.path })).message_id]
 }
 
 async function sendAlbum(api: Api, target: Target, files: Prepared[], caption?: string): Promise<number[]> {
   const media = files.map((file, i) => ({ type: file.kind, media: `attach://f${i}`, caption: file.caption ?? (i === 0 ? caption : undefined) }))
   const attachments = Object.fromEntries(files.map((file, i) => [`f${i}`, file.path]))
-  const sent = await api.upload<Sent[]>('sendMediaGroup', { ...where(target), media }, attachments)
+  const sent = await api.upload<Sent[]>('sendMediaGroup', { ...addressed(target), media }, attachments)
   return sent.map(m => m.message_id)
 }

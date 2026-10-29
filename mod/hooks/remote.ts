@@ -16,6 +16,7 @@ async function runRemoteControl(io: Io, bridge: Bridge): Promise<void> {
     const name = (await io.commandNames()).find(n => COMMAND_NAMES.includes(n))
     if (!name) throw new Error('this Claude Code has no /remote-control command')
     const url = (await io.runCommand(name))?.match(URL)?.[0]
+    bridge.remoteUrl = url
     await mirror(io, bridge, url ? `📱 Remote Control for this session: ${url}` : '📱 Remote Control is on for this session.')
   } catch (error) {
     const reason = explain(error)

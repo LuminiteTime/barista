@@ -66,6 +66,10 @@ export class Bindings {
     return this.toJSON().filter(b => !isLive(b, now))
   }
 
+  seenBefore(cutoff: number): Binding[] {
+    return this.toJSON().filter(b => b.lastSeen < cutoff)
+  }
+
   private holderOf(chatId: number, threadId: number | undefined): Binding | undefined {
     return this.toJSON().find(b => b.chatId === chatId && b.threadId === threadId)
   }

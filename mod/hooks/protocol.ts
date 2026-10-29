@@ -42,8 +42,11 @@ export type InboxItem = InboundMessage | StopRequest
 
 export type BindRequest = { sessionId: string; chat: string; topic?: string; create?: boolean; force?: boolean }
 export type AttachRequest = { sessionId: string; previousSessionId?: string }
-export type SendRequest = { sessionId: string; text: string }
-export type SendFilesRequest = { sessionId: string; files: { path: string; caption?: string }[]; caption?: string }
+/** `replyTo`: the Telegram message this answers (none for a terminal prompt). */
+export type SendRequest = { sessionId: string; text: string; replyTo?: number }
+export type SendFilesRequest = { sessionId: string; files: { path: string; caption?: string }[]; caption?: string; replyTo?: number }
+/** `skipped`: why each file that could not go was left out. */
+export type SendFilesResult = { messageIds: number[]; skipped: string[] }
 export type StatusRequest = { sessionId: string; chatId: number; messageIds: number[]; stage: Stage }
 export type NoticeRequest = { sessionId: string; key: string; text: string }
 

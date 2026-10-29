@@ -1,6 +1,6 @@
 type Level = 'info' | 'warn' | 'error' | 'debug'
 
-// ponytail: plain lines to stdout; launchd appends them to ~/.barista/daemon.log. No rotation: add it if the log ever grows large.
+// Plain lines to stdout; launchd appends them to ~/.barista/daemon.log, housekeeping.ts rotates it.
 export function log(level: Level, message: string, detail?: unknown): void {
   if (level === 'debug' && !process.env.BARISTA_DEBUG) return
   const suffix = detail === undefined ? '' : ' ' + describe(detail)

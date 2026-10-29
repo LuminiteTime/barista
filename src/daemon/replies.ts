@@ -1,22 +1,22 @@
-import type { NoticeRequest, SendFilesRequest, SendRequest, StatusRequest } from '../../mod/hooks/protocol.ts'
+import type { NoticeRequest, SendFilesRequest, SendFilesResult, SendRequest, StatusRequest } from '../../mod/hooks/protocol.ts'
 import { requireBinding, type Core } from './core.ts'
 import { log } from './log.ts'
 import { deleteMessage, postNotice, sendFiles, sendText } from './outbound.ts'
 import type { NoticeRecord } from './state.ts'
 import { TelegramError } from './telegram/api.ts'
 
-export async function sendAnswer(core: Core, { sessionId, text }: SendRequest): Promise<number[]> {
+export async function sendAnswer(core: Core, { sessionId, text, replyTo }: SendRequest): Promise<number[]> {
   const binding = requireBinding(core, sessionId)
-  const ids = await sendText(core.api, binding, text)
+  const ids = await sendText(core.api, { ...binding, replyTo }, text)
   log('info', `→ ${binding.title}: answer, ${text.length} chars, messages ${ids.join(',')}`)
   return ids
 }
 
-export async function sendArtifacts(core: Core, { sessionId, files, caption }: SendFilesRequest): Promise<number[]> {
+export async function sendArtifacts(core: Core, { sessionId, files, caption, replyTo }: SendFilesRequest): Promise<SendFilesResult> {
   const binding = requireBinding(core, sessionId)
-  const ids = await sendFiles(core.api, binding, files, caption)
-  log('info', `→ ${binding.title}: ${files.length} file(s), messages ${ids.join(',')}`)
-  return ids
+  const sent = await sendFiles(core.api, { ...binding, replyTo }, files, caption)
+  log('info', `→ ${binding.title}: ${files.length} file(s), messages ${sent.messageIds.join(',')}, ${sent.skipped.length} skipped`)
+  return sent
 }
 
 export async function setStatus(core: Core, { sessionId, messageIds, stage }: StatusRequest): Promise<void> {

@@ -1,6 +1,7 @@
 import type { Io } from './io.ts'
-import { bindSession, unbindSession, type Bridge } from './bridge.ts'
+import { bindSession, replyTarget, unbindSession, type Bridge } from './bridge.ts'
 import { callDaemon, explain } from './client.ts'
+import type { SendFilesResult } from './protocol.ts'
 import { startRemoteControl } from './remote.ts'
 
 type Input = Record<string, unknown>
@@ -52,8 +53,10 @@ export const TOOLS = [
       required: ['files'],
     },
     run: async (io: Io, bridge: Bridge, input: Input) => {
-      const { messageIds } = await callDaemon<{ messageIds: number[] }>(io, 'POST', '/send-files', { sessionId: bridge.sessionId, ...input })
-      return `Sent ${messageIds.length} message(s) to ${bridge.binding?.title}.`
+      const request = { sessionId: bridge.sessionId, ...input, replyTo: replyTarget(bridge) }
+      const { messageIds, skipped } = await callDaemon<SendFilesResult>(io, 'POST', '/send-files', request)
+      const notSent = skipped.length ? ` Not sent: ${skipped.join(' ')}` : ''
+      return `Sent ${messageIds.length} message(s) to ${bridge.binding?.title}.${notSent}`
     },
   },
   {

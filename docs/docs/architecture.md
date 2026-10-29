@@ -18,7 +18,8 @@ One Node 24 process under launchd (`dev.barista.daemon`), with no runtime depend
 - **Registry** remembers chats and topics seen in updates and resolves `chat / topic` names.
 - **Bindings** map a target (chat, topic) to one session id. A binding stays live while its session polls; after 60 s of silence another session can take it.
 - **Delivery** filters updates (owner only, optional chat allowlist), groups albums, downloads files, transcribes voice and queues the message in the session's inbox.
-- **Replies** send rich text with a plain fallback, files and albums, reactions and permission notices.
+- **Replies** send rich text with a plain fallback, files and albums, reactions and permission notices. An answer carries `replyTo`, the Telegram message it answers, and goes out as a reply to it.
+- **Housekeeping** runs at start and hourly: received files older than 7 days, bindings unseen for 30 days, and a `daemon.log` over 5 MB (copied to `daemon.log.1`, then emptied in place, since launchd holds it open).
 - **State** (`~/.barista/state.json`) keeps the update offset, registry, bindings and open notices, written atomically. Notices left by sessions that died are deleted on the next start.
 
 ## Mod

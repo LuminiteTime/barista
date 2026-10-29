@@ -1,15 +1,15 @@
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { loadConfig, saveConfig, type Config } from '../daemon/config.ts'
 import type { Paths } from '../daemon/paths.ts'
 import { createApi, type Api } from '../daemon/telegram/api.ts'
 import type { BotInfo, Update } from '../daemon/telegram/types.ts'
 import { installService, stopService } from './launchd.ts'
 import { cliEntry, packageRoot } from './package.ts'
-import { ask, say } from './prompt.ts'
+import { askSecret, say } from './prompt.ts'
 import { run } from './shell.ts'
 import { setupVoice } from './voice.ts'
 
-export type SetupOptions = { token?: string; owner?: number; chats?: number[]; yes: boolean; voice: boolean; mod: boolean }
+export type SetupOptions = { tokenFile?: string; owner?: number; chats?: number[]; yes: boolean; voice: boolean; mod: boolean }
 
 /** One command from zero to a running daemon and an installed mod. */
 export async function setup(paths: Paths, options: SetupOptions): Promise<void> {
@@ -26,7 +26,8 @@ export async function setup(paths: Paths, options: SetupOptions): Promise<void> 
 }
 
 async function configure(options: SetupOptions, existing?: Config): Promise<{ config: Config; bot: BotInfo }> {
-  const token = options.token ?? existing?.token ?? (await ask('Bot token from @BotFather: '))
+  const fromFile = options.tokenFile ? await readTokenFile(options.tokenFile) : undefined
+  const token = fromFile ?? existing?.token ?? (await askSecret('Bot token from @BotFather (input hidden): '))
   const api = createApi({ token })
   const bot = await api.call<BotInfo>('getMe').catch(() => {
     throw new Error('Telegram rejected this token. Copy it again from @BotFather → /mybots → API Token.')
@@ -34,6 +35,15 @@ async function configure(options: SetupOptions, existing?: Config): Promise<{ co
   say(`✓ Bot @${bot.username}`)
   const ownerId = options.owner ?? existing?.ownerId ?? (await waitForOwner(api, bot))
   return { config: { ...existing, token, ownerId, chats: options.chats ?? existing?.chats }, bot }
+}
+
+const TOKEN = /\d{5,}:[\w-]{30,}/
+
+/** A file holding the token, bare or as an .env line; never a command-line argument, which `ps` and shell history would show. */
+export async function readTokenFile(path: string): Promise<string> {
+  const token = (await readFile(path, 'utf8')).match(TOKEN)?.[0]
+  if (!token) throw new Error(`No bot token in ${path}. Put the token from @BotFather there, alone or as TELEGRAM_BOT_TOKEN=…`)
+  return token
 }
 
 async function waitForOwner(api: Api, bot: BotInfo): Promise<number> {
