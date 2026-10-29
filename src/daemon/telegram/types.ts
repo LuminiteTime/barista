@@ -50,6 +50,7 @@ export type Message = {
   forum_topic_created?: { name: string }
   new_chat_members?: User[]
   left_chat_member?: User
+  migrate_to_chat_id?: number
   forum_topic_edited?: { name?: string }
 }
 

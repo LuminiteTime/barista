@@ -54,7 +54,8 @@ export class Registry {
 
   findChat(name: string): ChatEntry {
     const wanted = normalize(name)
-    const chat = [...this.chats.values()].find(c => normalize(c.title) === wanted || String(c.id) === wanted)
+    // Titles repeat (a group upgraded to a forum keeps its title under a new id): the chat seen last wins.
+    const chat = [...this.chats.values()].findLast(c => normalize(c.title) === wanted || String(c.id) === wanted)
     if (chat) return chat
     throw new BaristaError(
       'CHAT_UNKNOWN',
@@ -76,12 +77,10 @@ export class Registry {
   }
 
   private observeMessage(message: Message): void {
+    if (message.migrate_to_chat_id) return void this.chats.delete(message.chat.id) // upgraded to a supergroup
     const entry = this.learnChat(message.chat)
     const thread = message.message_thread_id
-    const name =
-      message.forum_topic_created?.name ??
-      message.forum_topic_edited?.name ??
-      (message.is_topic_message ? message.reply_to_message?.forum_topic_created?.name : undefined)
+    const name = topicNameIn(message)
     if (thread && name) entry.topics[thread] = name
   }
 
@@ -94,9 +93,16 @@ export class Registry {
       isForum: chat.is_forum === true,
       topics: known?.topics ?? {},
     }
+    this.chats.delete(chat.id) // re-inserting keeps the map in order of last sighting
     this.chats.set(chat.id, entry)
     return entry
   }
+}
+
+/** The topic a message names: its own creation or rename, or the creation it replies to inside the topic. */
+function topicNameIn(message: Message): string | undefined {
+  const created = message.is_topic_message ? message.reply_to_message?.forum_topic_created?.name : undefined
+  return message.forum_topic_created?.name ?? message.forum_topic_edited?.name ?? created
 }
 
 function normalize(name: string): string {

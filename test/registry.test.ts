@@ -68,3 +68,15 @@ test('survives a JSON round trip and forgets chats the bot left', () => {
   })
   assert.throws(() => restored.resolve('Мастерская', 'A'), { code: 'CHAT_UNKNOWN' })
 })
+
+test('a group upgraded to a forum leaves the registry, and a repeated title means the chat seen last', () => {
+  const registry = new Registry()
+  const old = { id: -300, type: 'group', title: 'barista demo' } as const
+  const forum = { id: -1003, type: 'supergroup', title: 'barista demo', is_forum: true } as const
+  registry.observe({ update_id: 1, message: msg({ chat: old, text: 'hi' }) })
+  registry.observe({ update_id: 2, message: msg({ chat: forum, message_thread_id: 2, forum_topic_created: { name: 'backend' } }) })
+  assert.equal(registry.resolve('barista demo', 'backend').chatId, -1003, 'the newer chat with that title wins')
+
+  registry.observe({ update_id: 3, message: msg({ chat: old, migrate_to_chat_id: -1003 }) })
+  assert.deepEqual(registry.list().map(c => c.id), [-1003], 'the upgraded group is gone')
+})
