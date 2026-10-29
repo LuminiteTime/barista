@@ -2,6 +2,7 @@ import type { Io } from './io.ts'
 import { callDaemon, DaemonError, explain } from './client.ts'
 import { toPrompt, type BindArgs } from './format.ts'
 import type { BindingView, InboundMessage, InboxItem, Stage } from './protocol.ts'
+import { bandFor } from './status.ts'
 
 /** A Telegram message handed to Claude Code, waiting for (or running in) a turn. */
 export type Pending = { chatId: number; messageIds: number[]; prompt: string }
@@ -136,8 +137,7 @@ export async function mirror(io: Io, bridge: Bridge, text: string, replyTo?: num
 }
 
 export function showStatus(io: Io, bridge: Bridge, problem?: unknown): void {
-  if (problem) return void io.status(`TG ⚠ ${problem instanceof DaemonError ? problem.code : 'error'}`)
-  io.status(bridge.binding ? `TG: ${bridge.binding.title} ✓` : undefined)
+  io.status(bandFor(bridge, problem))
 }
 
 async function handle(io: Io, bridge: Bridge, item: InboxItem): Promise<void> {

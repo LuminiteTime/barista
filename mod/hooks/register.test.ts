@@ -12,7 +12,6 @@ test('/tg bind posts to the daemon and the tools are registered', async ($, on) 
   on('env.get', () => ({ value: '/home/u/.barista' }))
   on('clock.every', () => ({ value: undefined }))
   on('clock.after', () => ({ value: undefined }))
-  on('ui.status', () => ({ value: undefined }))
   on('http.fetch', (_$, e) => {
     fetched.push({ url: e.url, body: e.init?.body })
     const binding = { chatId: -100, threadId: 7, title: 'Мастерская / Test topic 1' }
@@ -37,7 +36,6 @@ test('/tg explains an unreachable daemon instead of failing silently', async ($,
   on('session.id', () => ({ value: 'sess-1' }))
   on('env.get', () => ({ value: '/home/u/.barista' }))
   on('clock.every', () => ({ value: undefined }))
-  on('ui.status', () => ({ value: undefined }))
   on('http.fetch', () => {
     throw new Error('ECONNREFUSED')
   })

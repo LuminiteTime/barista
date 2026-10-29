@@ -3,6 +3,7 @@ import { bindSession, replyTarget, unbindSession, type Bridge } from './bridge.t
 import { callDaemon, explain } from './client.ts'
 import type { SendFilesResult } from './protocol.ts'
 import { startRemoteControl } from './remote.ts'
+import { describeStatus } from './status.ts'
 
 type Input = Record<string, unknown>
 
@@ -63,7 +64,7 @@ export const TOOLS = [
     name: 'telegram_status',
     description: 'Show whether this session is bound to Telegram, and where.',
     inputSchema: { type: 'object', properties: {} },
-    run: async (io: Io, bridge: Bridge) => (bridge.binding ? `Bound to ${bridge.binding.title}.` : 'Not bound to Telegram.'),
+    run: (io: Io, bridge: Bridge) => describeStatus(io, bridge),
   },
 ]
 

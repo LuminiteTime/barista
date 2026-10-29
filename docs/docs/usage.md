@@ -24,6 +24,8 @@ The bot learns chat and topic names only from messages it receives; Telegram has
 
 After `/clear` the session id changes; the mod moves the binding to the new id by itself.
 
+A band above the prompt shows where the session listens: `☕ barista ● Work / backend` while bound, `○ not bound` with the bind command otherwise, and `✗ DAEMON_DOWN` with the fix when the daemon is unreachable. Collapse it with `[-]`. `/tg status` says the same in words, plus the bot's name and the Remote Control link.
+
 ## Messages
 
 Each message in the bound topic becomes a prompt that starts with `[Telegram · <chat / topic>]`. Albums arrive as one prompt. Files are saved to `~/.barista/files/<chat>/<topic>/` and the prompt lists their paths. They are deleted after 7 days. Voice messages carry a transcript when whisper.cpp is installed. Replying to a message adds the quoted text (or the start of the original message) to the prompt.

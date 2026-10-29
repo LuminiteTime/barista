@@ -1,10 +1,12 @@
 import type { On, Register } from 'claude-code'
+import { bandWriter, hookBand } from './band.tsx'
 import { attach, bindSession, createBridge, endSession, finishTurn, pollOnce, showStatus, startTurn, unbindSession, type Bridge } from './bridge.ts'
 import { explain } from './client.ts'
 import { INSTRUCTIONS, parseBindArgs } from './format.ts'
 import type { Io } from './io.ts'
 import { closePermissionNotice, closePermissionNotices, openPermissionNotice, trackCall } from './permissions.ts'
 import { startRemoteControl } from './remote.ts'
+import { describeStatus } from './status.ts'
 import { runTool, TOOL_PATTERN, TOOLS } from './tools.ts'
 
 type Mod = { bridge: Bridge; io?: Io }
@@ -19,6 +21,7 @@ export const register: Register = on => {
   hookCommandsAndTools(on, mod)
   hookPermissions(on, mod)
   hookTurns(on, mod)
+  hookBand(on)
 }
 
 function hookSession(on: On, mod: Mod): void {
@@ -27,7 +30,7 @@ function hookSession(on: On, mod: Mod): void {
       fetch: (url, init) => $.http.fetch(url, init),
       baristaHome: async () => (await $.env.get('BARISTA_HOME')) ?? `${await $.env.get('HOME')}/.barista`,
       sessionId: () => $.session.id(),
-      status: text => $.ui.status(text),
+      status: bandWriter($),
       toast: text => $.ui.toast(text),
       submit: async text => ({ isDropped: (await $.prompt.submit({ text, asUser: true })).drop !== undefined }),
       abortTurn: turnId => $.turn.abort({ turnId }),
@@ -103,7 +106,7 @@ async function runCommand(io: Io, bridge: Bridge, args: string): Promise<string>
   const [verb, ...rest] = args.trim().split(/\s+/)
   try {
     if (verb === 'unbind') return await unbindSession(io, bridge)
-    if (verb === 'status' || verb === '') return bridge.binding ? `Bound to ${bridge.binding.title}.` : `Not bound. ${USAGE}`
+    if (verb === 'status' || verb === '') return await describeStatus(io, bridge)
     const parsed = verb === 'bind' ? parseBindArgs(rest.join(' ')) : undefined
     if (!parsed) return USAGE
     const text = await bindSession(io, bridge, parsed)
