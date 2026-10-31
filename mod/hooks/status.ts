@@ -1,15 +1,20 @@
 import type { Io } from './io.ts'
 import type { Bridge } from './bridge.ts'
+import type { Scene } from './clawd.ts'
 import { callDaemon, DaemonError, explain } from './client.ts'
 import { bindTarget } from './format.ts'
 import type { Health } from './protocol.ts'
 
 /** What the band above the prompt shows: where this session listens, or why it cannot. */
-export type Band = { tone: 'bound' | 'waiting' | 'idle' | 'down'; text: string; hint: string }
+export type Band = { tone: 'bound' | 'waiting' | 'idle' | 'down'; text: string; hint: string; scene: Scene }
 
 export const BIND_HINT = '/tg bind <chat> / <topic>'
 
 export function bandFor(bridge: Bridge, problem?: unknown): Band {
+  return { ...lineFor(bridge, problem), scene: sceneFor(bridge, problem) }
+}
+
+function lineFor(bridge: Bridge, problem?: unknown): Omit<Band, 'scene'> {
   if (problem) {
     const code = problem instanceof DaemonError ? problem.code : 'INTERNAL'
     return { tone: 'down', text: code, hint: code === 'DAEMON_DOWN' ? 'run: barista start' : 'run: barista doctor' }
@@ -17,6 +22,16 @@ export function bandFor(bridge: Bridge, problem?: unknown): Band {
   if (bridge.waiting) return { tone: 'waiting', text: `waiting for a message in ${bindTarget(bridge.waiting.args)}`, hint: `${timeLeft(bridge.waiting.triesLeft)} left · send any message there · /tg unbind cancels` }
   if (bridge.binding) return { tone: 'bound', text: bridge.binding.title, hint: 'answers go to Telegram · /tg unbind' }
   return { tone: 'idle', text: 'not bound', hint: BIND_HINT }
+}
+
+/** What Clawd is up to: moves while something is happening, stands still otherwise. */
+function sceneFor(bridge: Bridge, problem?: unknown): Scene {
+  if (problem) return 'down'
+  if (bridge.waiting) return 'peek'
+  if (bridge.notices.size > 0) return 'ask'
+  if (bridge.runningTurnId) return 'brew'
+  if (bridge.moment) return bridge.moment.scene
+  return bridge.binding ? 'idle' : 'sleep'
 }
 
 /** The answer to `/tg status`: the daemon, the bot, and this session's binding. */

@@ -1,6 +1,6 @@
 import type { Io } from './io.ts'
 import { callDaemon } from './client.ts'
-import { setStages, type Bridge } from './bridge.ts'
+import { setStages, showStatus, type Bridge } from './bridge.ts'
 import { askInTelegram, settleQuestions } from './questions.ts'
 
 const PREVIEW_LIMIT = 300
@@ -25,6 +25,7 @@ export async function openPermissionNotice(io: Io, bridge: Bridge, tool: string,
     () => void bridge.notices.delete(key),
   )
   bridge.notices.set(key, posting)
+  showStatus(io, bridge)
   await setStages(io, bridge, bridge.current, 'waiting')
   await posting
 }
@@ -37,7 +38,9 @@ export async function askPermissionQuestion(io: Io, bridge: Bridge, input: unkno
   if (!bridge.binding) return undefined
   const key = noticeKeyFor(bridge, 'AskUserQuestion')
   await setStages(io, bridge, bridge.current, 'waiting')
-  return askInTelegram(io, bridge, key, input)
+  const answers = askInTelegram(io, bridge, key, input)
+  showStatus(io, bridge)
+  return answers
 }
 
 /** The in-flight call of that tool with no notice yet, so its end removes the notice. */
@@ -54,6 +57,7 @@ export async function closePermissionNotice(io: Io, bridge: Bridge, key: string,
   if (!posting) return
   await posting
   bridge.notices.delete(key)
+  showStatus(io, bridge)
   await callDaemon(io, 'POST', '/notice/close', { sessionId: bridge.sessionId, key }).catch(() => undefined)
   if (resume && bridge.notices.size === 0) await setStages(io, bridge, bridge.current, 'working')
 }

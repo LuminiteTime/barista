@@ -24,7 +24,9 @@ The bot learns chat and topic names only from messages it receives; Telegram has
 
 After `/clear` the session id changes; the mod moves the binding to the new id by itself.
 
-A band above the prompt shows where the session listens: `☕ barista ● Work / backend` while bound, `○ not bound` with the bind command otherwise, and `✗ DAEMON_DOWN` with the fix when the daemon is unreachable. Collapse it with `[-]`. `/tg status` says the same in words, plus the bot's name and the Remote Control link.
+A band above the prompt shows where the session listens: `barista ● Work / backend` while bound, `○ not bound` with the bind command otherwise, and `✗ DAEMON_DOWN` with the fix when the daemon is unreachable. Collapse it with `[-]`.
+
+The sprite before `barista` is Clawd, the barista, an emoji-sized picture drawn where the terminal shows images (kitty, Ghostty, iTerm2 3.5+ in fullscreen rendering). Elsewhere, Herdr among them, the same scenes play as a single emoji: `🫘 💧 ☕` during a turn, `☕ ✨` when served, `💦` on a spill, `🙋 ❓` for a question, `👀 🔍` while binding, and a still `☕`, `💤` or `💔` at rest. Clawd moves only while something is happening: bounces and fills a cup during a turn, hops with the steaming cup when the answer reaches Telegram, spills it when a turn fails or is aborted, shows a `?` while a question or permission waits for you, and looks around while a bind waits for its chat. Otherwise Clawd stands still: beside a full cup when bound, asleep when not, sad over a puddle when the daemon is down. `/tg status` says the same in words, plus the bot's name and the Remote Control link.
 
 ## Messages
 

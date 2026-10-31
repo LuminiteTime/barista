@@ -1,4 +1,5 @@
 import type { Io } from './io.ts'
+import { MOMENT_MS, type Moment } from './clawd.ts'
 import { callDaemon, DaemonError, explain } from './client.ts'
 import { toPrompt, type BindArgs } from './format.ts'
 import type { BindingView, InboundMessage, InboxItem, Stage } from './protocol.ts'
@@ -16,6 +17,8 @@ export type Bridge = {
   pending: Pending[]
   current: Pending[]
   runningTurnId?: string
+  /** How the last turn ended, while the band still plays it; an object, so a newer moment is told from it. */
+  moment?: { scene: Moment }
   /** Open permission notices: key → the request posting it. */
   notices: Map<string, Promise<void>>
   /** Tool calls in flight: tool_use_id → tool name. */
@@ -31,6 +34,8 @@ export type Bridge = {
 }
 
 export type TurnEnd = 'answer' | 'aborted' | 'refusal' | 'error'
+
+type Delivery = 'sent' | 'nothing-to-send' | 'failed'
 
 const INBOX_WAIT_SECONDS = 20
 const TELEGRAM_HEADER = '[Telegram · '
@@ -101,6 +106,7 @@ export async function pollOnce(io: Io, bridge: Bridge): Promise<void> {
 /** A main-loop turn began: the Telegram messages it carries (none for a terminal prompt) start working. */
 export async function startTurn(io: Io, bridge: Bridge, turnId: string, text: string): Promise<void> {
   bridge.runningTurnId = turnId
+  showStatus(io, bridge)
   let started = bridge.pending.filter(p => text.includes(p.prompt))
   if (started.length === 0 && text.includes(TELEGRAM_HEADER)) started = bridge.pending.slice(0, 1)
   bridge.pending = bridge.pending.filter(p => !started.includes(p))
@@ -114,7 +120,25 @@ export async function finishTurn(io: Io, bridge: Bridge, reason: TurnEnd, answer
   const replyTo = replyTarget(bridge)
   const fallback = reason === 'answer' || reason === 'aborted' ? '' : `💔 The turn ended with ${reason}.`
   bridge.current = []
-  await mirror(io, bridge, answer || fallback, replyTo)
+  const delivery = await mirror(io, bridge, answer || fallback, replyTo)
+  playMoment(io, bridge, momentAfter(reason, delivery))
+}
+
+function momentAfter(reason: TurnEnd, delivery: Delivery): Moment | undefined {
+  if (reason !== 'answer' || delivery === 'failed') return 'spill'
+  return delivery === 'sent' ? 'serve' : undefined
+}
+
+function playMoment(io: Io, bridge: Bridge, scene: Moment | undefined): void {
+  const moment = scene && { scene }
+  bridge.moment = moment
+  showStatus(io, bridge)
+  if (!moment) return
+  io.after(MOMENT_MS[moment.scene], () => {
+    if (bridge.moment !== moment) return
+    bridge.moment = undefined
+    showStatus(io, bridge)
+  })
 }
 
 /** The Telegram message the running turn answers: the latest it carries. None for a terminal prompt. */
@@ -137,14 +161,18 @@ export async function setStages(io: Io, bridge: Bridge, messages: Pending[], sta
 }
 
 /** Sends the answer, waiting out a short daemon outage (restart, crash loop) rather than losing it. */
-export async function mirror(io: Io, bridge: Bridge, text: string, replyTo?: number): Promise<void> {
-  if (!bridge.binding || !text.trim()) return
+export async function mirror(io: Io, bridge: Bridge, text: string, replyTo?: number): Promise<Delivery> {
+  if (!bridge.binding || !text.trim()) return 'nothing-to-send'
   for (let attempt = 0; ; attempt++) {
     try {
-      return void (await callDaemon(io, 'POST', '/send', { sessionId: bridge.sessionId, text, replyTo }))
+      await callDaemon(io, 'POST', '/send', { sessionId: bridge.sessionId, text, replyTo })
+      return 'sent'
     } catch (error) {
       const isDown = error instanceof DaemonError && error.code === 'DAEMON_DOWN'
-      if (!isDown || attempt >= MIRROR_RETRIES) return io.toast(`barista: ${explain(error)}`)
+      if (!isDown || attempt >= MIRROR_RETRIES) {
+        io.toast(`barista: ${explain(error)}`)
+        return 'failed'
+      }
       await new Promise<void>(resolve => io.after(MIRROR_RETRY_MS, resolve))
     }
   }
