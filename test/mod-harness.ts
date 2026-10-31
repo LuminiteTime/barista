@@ -43,8 +43,6 @@ export function fakeIo(home: string, submitted: string[]): Io {
     submit: async text => (submitted.push(text), { isDropped: false }),
     abortTurn: async () => {},
     after: (_ms, fn) => void setImmediate(fn),
-    commandNames: async () => [],
-    runCommand: async () => undefined,
   }
 }
 

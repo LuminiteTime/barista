@@ -19,6 +19,4 @@ export type Io = {
   submit(text: string): Promise<{ isDropped: boolean }>
   abortTurn(turnId: string): Promise<void>
   after(ms: number, fn: () => void): void
-  commandNames(): Promise<string[]>
-  runCommand(name: string): Promise<string | undefined>
 }

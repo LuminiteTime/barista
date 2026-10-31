@@ -18,8 +18,7 @@ export function trackCall(bridge: Bridge, toolUseId: string, tool: string): void
 export async function openPermissionNotice(io: Io, bridge: Bridge, tool: string, input: unknown): Promise<void> {
   if (!bridge.binding) return
   const key = noticeKeyFor(bridge, tool)
-  const where = bridge.remoteUrl ? `in Remote Control: ${bridge.remoteUrl}` : 'in Remote Control'
-  const text = `🔐 Claude asks to run ${tool}: ${preview(input)}\nAnswer in the terminal or ${where}`
+  const text = `🔐 Claude asks to run ${tool}: ${preview(input)}\nAnswer in the terminal.`
   const posting = callDaemon(io, 'POST', '/notice', { sessionId: bridge.sessionId, key, text }).then(
     () => undefined,
     () => void bridge.notices.delete(key),

@@ -35,8 +35,6 @@ function hookSession(on: On, mod: Mod): void {
       submit: async text => ({ isDropped: (await $.prompt.submit({ text, asUser: true })).drop !== undefined }),
       abortTurn: turnId => $.turn.abort({ turnId }),
       after: (ms, fn) => void $.clock.after(ms, fn),
-      commandNames: async () => (await $.command.list()).map(c => c.name),
-      runCommand: async name => (await $.command.run({ command: name, args: '' })).text,
     }
     mod.io = io
     await $.command.register({ name: 'tg', description: 'Bind this session to Telegram: /tg bind <chat> / <topic>', argumentHint: 'bind|unbind|status' })

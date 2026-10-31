@@ -35,7 +35,7 @@ Claude asks a question: the options arrive as buttons, and a tap answers it in t
 
 <table>
 <tr>
-<td width="55%"><img src="docs/static/img/demo/bind.gif" alt="/tg bind turns the barista band green and starts Remote Control"></td>
+<td width="55%"><img src="docs/static/img/demo/bind.gif" alt="/tg bind turns the barista band green"></td>
 <td><img src="docs/static/img/demo/files.png" alt="Claude sends the shop logo to the topic"></td>
 </tr>
 <tr>
@@ -63,7 +63,7 @@ Claude asks a question: the options arrive as buttons, and a tap answers it in t
   | 🤷 | message type not supported |
 
   No reaction means no session listens there right now; such messages are ignored.
-- Binding also turns on Remote Control, so permission prompts can be answered from the Claude app on your phone. The topic gets a short notice with the session's Remote Control link; it is deleted when the question is settled and the call ends.
+- When Claude needs permission, the topic gets a short notice saying to answer in the terminal; it is deleted when the question is settled and the call ends.
 - Claude's questions arrive with a button per option; a tap answers them, and the terminal dialog closes.
 - `/stop` in the topic interrupts the current turn. Replying to a specific message quotes it into the prompt.
 
@@ -88,7 +88,6 @@ A Telegram bot token allows only one `getUpdates` poller, so one small daemon ow
 | [Homebrew](https://brew.sh) | installs the tools below | see brew.sh |
 | Node.js 24 or newer | runs barista | `brew install node` |
 | Claude Code with mods support | barista is a Claude Code mod | [docs](https://code.claude.com/docs) |
-| A claude.ai login in Claude Code | Remote Control needs it | `claude` → `/login` |
 | ffmpeg + whisper.cpp (optional) | voice message transcripts | `brew install ffmpeg whisper-cpp` (setup offers this) |
 
 ### 2. Create the bot
@@ -102,7 +101,7 @@ A Telegram bot token allows only one `getUpdates` poller, so one small daemon ow
 From a release tarball:
 
 ```sh
-npm install -g ./barista-1.0.0.tgz
+npm install -g ./barista-1.1.0.tgz
 ```
 
 Or from source:

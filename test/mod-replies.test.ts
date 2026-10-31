@@ -5,7 +5,6 @@ import { test } from 'node:test'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { finishTurn, pollOnce, startTurn } from '../mod/hooks/bridge.ts'
 import { openPermissionNotice } from '../mod/hooks/permissions.ts'
-import { startRemoteControl } from '../mod/hooks/remote.ts'
 import { runTool } from '../mod/hooks/tools.ts'
 import { boundSession, topicMessage } from './mod-harness.ts'
 
@@ -29,24 +28,8 @@ test('answers and files of a Telegram turn reply to its message; a terminal turn
   assert.equal(terminal, undefined)
 })
 
-test('binding again does not run /remote-control twice: a second run opens its panel', async t => {
-  const { tg, io: base, bridge } = await boundSession(t)
-  let runs = 0
-  const io = { ...base, commandNames: async () => ['remote-control'], runCommand: async () => (runs++, 'Remote Control: https://claude.ai/code/session_1') }
-  startRemoteControl(io, bridge)
-  await sleep(50)
-  startRemoteControl(io, bridge)
-  await sleep(50)
-  assert.equal(runs, 1)
-  const notices = tg.named('sendRichMessage').map(c => (c.params.rich_message as { markdown: string }).markdown)
-  assert.equal(notices.filter(text => text.includes('session_1')).length, 2, 'the new topic still gets the link')
-})
-
-test('the permission notice links to this session in Remote Control', async t => {
-  const { tg, io: base, bridge } = await boundSession(t)
-  const io = { ...base, commandNames: async () => ['remote-control'], runCommand: async () => 'Remote Control: https://claude.ai/code/session_1' }
-  startRemoteControl(io, bridge)
-  await sleep(50)
+test('the permission notice says what Claude asks and where to answer', async t => {
+  const { tg, io, bridge } = await boundSession(t)
   await openPermissionNotice(io, bridge, 'Bash', { command: 'make' })
-  assert.match(String(tg.named('sendMessage').at(-1)?.params.text), /https:\/\/claude\.ai\/code\/session_1/)
+  assert.equal(tg.named('sendMessage').at(-1)?.params.text, '🔐 Claude asks to run Bash: make\nAnswer in the terminal.')
 })

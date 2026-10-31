@@ -12,7 +12,6 @@ sidebar_position: 2
 | [Homebrew](https://brew.sh) | installs Node and the voice tools | see brew.sh |
 | Node.js 24 or newer | runs barista | `brew install node` |
 | Claude Code with mods support | barista is a Claude Code mod | `claude --version` |
-| claude.ai login in Claude Code | Remote Control needs it | run `claude`, then `/login` |
 | ffmpeg and whisper.cpp | voice transcripts (optional) | `brew install ffmpeg whisper-cpp`; setup offers it |
 
 ## Create the bot
@@ -26,7 +25,7 @@ sidebar_position: 2
 From a release tarball (built by CI on every tag):
 
 ```sh
-npm install -g ./barista-1.0.0.tgz
+npm install -g ./barista-1.1.0.tgz
 ```
 
 From source:

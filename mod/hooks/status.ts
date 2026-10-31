@@ -41,8 +41,7 @@ export async function describeStatus(io: Io, bridge: Bridge): Promise<string> {
   const daemon = `daemon up, bot @${health.bot}`
   if (bridge.waiting) return `⏳ Waiting for a message in ${bindTarget(bridge.waiting.args)} (${daemon}), ${timeLeft(bridge.waiting.triesLeft)} left; send any message there to finish binding.`
   if (!bridge.binding) return `○ Not bound (${daemon}). Bind this session: ${BIND_HINT}`
-  const remote = bridge.remoteUrl ? ` Remote Control: ${bridge.remoteUrl}` : ''
-  return `● Bound to ${bridge.binding.title} (${daemon}). Messages there arrive here; answers go back.${remote}`
+  return `● Bound to ${bridge.binding.title} (${daemon}). Messages there arrive here; answers go back.`
 }
 
 /** Seconds as m:ss. */
